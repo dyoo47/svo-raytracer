@@ -1,0 +1,293 @@
+#version 430 core
+layout(binding = 0, rgba8) uniform image2D framebufferImage;
+layout(location = 0) uniform vec3 cam[5] = {
+  vec3(0.0, 2.0, 5.0), // <- position
+  vec3(-1.0, -1.0, -1.0), vec3(-1.0, 1.0, -1.0), // <- left corner directions
+  vec3(1.0, -1.0, -1.0), vec3(1.0, 1.0, -1.0) // <- right corner directions
+};
+layout(location = 5) uniform int frameNumber;
+layout(location = 6) uniform int bufferEnd;
+uniform isamplerBuffer bufferTex;
+//uniform int newBuffer = 0;
+struct box {
+  vec3 min, max, color, emi;
+  //float3 emi, color;
+};
+struct sphere{
+    float radius;
+    vec3 pos, color, emi;
+};
+float rand(vec2 co){
+    return (fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453));
+}
+uint wang_hash(uint seed)
+{
+    seed = (seed ^ uint(61)) ^ (seed >> 16);
+    seed *= 9;
+    seed = seed ^ (seed >> 4);
+    seed *= 0x27d4eb2d;
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
+#define NUM_BOXES 7
+#define EPSILON 0.00003f
+#define PI 3.14159265359f
+#define SAMPLES 16;
+const box boxes[NUM_BOXES] = {
+  {vec3(-5.0, -0.1, -5.0), vec3(5.0, 0.0, 5.0), vec3(0.9f, 0.5f, 0.5f), vec3(0.0f, 0.0f, 0.0f)},  // <- bottom
+  {vec3(-5.1, 0.0, -5.0), vec3(-5.0, 5.0, 5.0), vec3(0.5f, 0.9f, 0.5f), vec3(0.0f, 0.0f, 0.0f)},  // <- left
+  {vec3(5.0, 0.0, -5.0), vec3(5.1, 5.0, 5.0), vec3(0.5f, 0.5f, 0.9f), vec3(0.0f, 0.0f, 0.0f)},    // <- right
+  {vec3(-5.0, 0.0, -5.1), vec3(5.0, 5.0, -5.0), vec3(0.5f, 0.5f, 0.5f), vec3(0.0f, 0.0f, 0.0f)},  // <- back
+  {vec3(0.0, 1.0, 0.0), vec3(1.0, 2.0, 1.0), vec3(1.0f, 1.0f, 1.0f), vec3(9.0f, 8.0f, 6.0f)},   // <- table top
+  //{vec3(-1.0, 3.0, -1.0), vec3(0.0, 5.0, 0.0), vec3(2.0f, 4.4f, 1.5f), vec3(8.0f, 4.4f, 1.5f)}, // <- table foot
+  {vec3(-2.0, 2.0, -2.0), vec3(-1.0, 3.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0f, 0.0f, 0.0f)},  // <- table foot
+  {vec3(2.0, 2.0, -2.0), vec3(3.0, 3.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0f, 0.0f, 0.0f)},   // <- table foot
+  //{vec3(0.8, 0.0,  0.8), vec3(1.0, 1.0, 1.0), vec3(0.3f, 0.4f, 0.5f), vec3(0.3f, 0.4f, 0.5f)}     // <- table foot
+};
+struct hitinfo {
+  float near;
+  int i;
+  vec3 normal;
+};
+struct Ray {
+    vec3 origin;
+    vec3 dir;
+};
+
+/*bool intersectSphere(vec3 origin, vec3 invdir, sphere s){
+    vec3 rayToCenter = s.pos - origin;
+    
+    float b = dot(rayToCenter, dir);
+    float c = dot(rayToCenter, rayToCenter) - s.radius * s.radius;
+    float disc = b * b - c;
+    float t = b - sqrt(disc);
+    
+    if(disc < 0.0f) return false;
+    else t = b - sqrt(disc);
+    
+    if(t < 0.0f){
+        t = b + sqrt(disc);
+    }
+}*/
+
+void createCamRay(Ray ray, int x_coord, int y_coord, int width, int height){
+    float fx = float(x_coord) / float(width);
+    float fy = float(y_coord) / float(height);
+    
+    float aspect_ratio = float(width) / float(height);
+    float fx2 = (fx - 0.5f) * aspect_ratio;
+    float fy2 = fy - 0.5f;
+    
+    vec3 pixel_pos = vec3(fx2, -fy2, 0.0f);
+    //Ray ray;
+    ray.origin = vec3(0.0, 2.0, 5.0);
+    ray.dir = normalize(pixel_pos - ray.origin);
+    //camray = ray;
+}
+
+vec2 intersectBox(vec3 origin, vec3 invdir, box b) {
+  vec3 tMin = (b.min - origin) * invdir;
+  vec3 tMax = (b.max - origin) * invdir;
+  vec3 t1 = min(tMin, tMax);
+  vec3 t2 = max(tMin, tMax);
+  float tNear = max(max(t1.x, t1.y), t1.z);
+  float tFar = min(min(t2.x, t2.y), t2.z);
+  return vec2(tNear, tFar);
+}
+bool intersectBoxes(vec3 origin, vec3 invdir, out hitinfo info) {
+  float smallest = 1.0/0.0;
+  bool found = false;
+  for (int i = 0; i < NUM_BOXES; i++) {
+    box b = boxes[i];
+    vec2 lambda = intersectBox(origin, invdir, b);
+    if (lambda.y >= 0.0 && lambda.x < lambda.y && lambda.x < smallest) {
+      info.near = lambda.x;
+      info.i = i;
+      vec3 hitpoint = origin + (1.0f / invdir) * info.near;
+      //vec3 p = (b.min - b.max) / 2.0f;
+      vec3 c = (b.min + b.max) * 0.5f;
+      vec3 p = (hitpoint - c);
+      vec3 d = vec3(abs(b.min.x - b.max.x), abs(b.min.y - b.max.y), abs(b.min.z - b.max.z)) / 2.0f;
+      float bias = 1.00001;
+      
+      vec3 normal = vec3(int(p.x / abs(d.x) * bias), 
+                         int(p.y / abs(d.y) * bias), 
+                         int(p.z / abs(d.z) * bias));
+      
+      info.normal = normal;
+      
+      smallest = lambda.x;
+      found = true;
+    }
+  }
+  return found;
+}
+    /*
+    NODE STRUCTURE-----------------------
+    0 :: size - 1 byte
+    1 :: value - 1 byte
+    2 :: x - position - 3 bytes
+    3 :: y
+    4 :: z
+    5 :: child pointer - 2 bytes    0 == null pointer as 0 is always taken by root node
+    6 ::
+    7 :: is leaf boolean - 1 byte
+     */
+     
+struct Node{
+    int size;
+    int value;
+    vec3 pos;
+    int cp;
+    int isLeaf;     
+};
+
+Node extractNode(int nodePointer){
+    Node ret = {
+        texelFetch(bufferTex, nodePointer++).r,
+        texelFetch(bufferTex, nodePointer++).r,
+        vec3(
+            texelFetch(bufferTex, nodePointer++).r,
+            texelFetch(bufferTex, nodePointer++).r,
+            texelFetch(bufferTex, nodePointer++).r
+        ),
+        int(texelFetch(bufferTex, nodePointer++).r | texelFetch(bufferTex, nodePointer++).r) << 8,
+        texelFetch(bufferTex, nodePointer++).r
+    };
+    return ret;
+}
+
+
+     
+bool intersectOctree(vec3 origin, vec3 invdir, out hitinfo info){
+    float smallest = 1.0/0.0;
+    bool found = false;
+    int bufferOffset = 0;
+    int curLOD = 0;
+    int maxLOD = 4;
+    int sib = 0;
+    Node parentNode = extractNode(bufferOffset);
+    while(bufferOffset < bufferEnd && curLOD < maxLOD){
+        //init current node as child of parentNode
+        Node curNode = extractNode(parentNode.cp + sib*8);
+       
+        //switch to sibling if current node is empty
+        if(curNode.cp == 0){
+            if(sib == 7){
+                //all sibling nodes are empty, return to parent and continue from sibling
+                sib = 0;
+            }
+            bufferOffset += 8;
+            sib++;
+            continue;
+        }
+        //if node.value != 0 (contains volume) check for collision
+        box curBox = {curNode.pos - curNode.size, curNode.pos + curNode.size, vec3(0.5, 0.5, 0.5), vec3(0.0, 0.0, 0.0)};
+        vec2 lambda = intersectBox(origin, invdir, curBox);
+        if (lambda.y >= 0.0 && lambda.x < lambda.y && lambda.x < smallest) {
+            //if at leaf level, return hit info of node. else, go deeper into octree.
+            smallest = lambda.x;
+            if(curNode.isLeaf == 1 || curLOD == maxLOD){
+                info.near = lambda.x;
+                info.i = bufferOffset;
+            }
+        }
+    }
+    
+    return found;
+}
+
+//bool intersectSphere
+
+
+/*vec3 trace(vec3 origin, vec3 dir) {
+  hitinfo hinfo;
+  
+  vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
+  vec3 mask = vec3(1.0f, 1.0f, 1.0f);
+  
+  if (!intersectBoxes(origin, 1.0/dir, hinfo))
+    return vec3(0.0); // <- nothing hit, return black
+  box b = boxes[hinfo.i];
+  return vec3(float(hinfo.i+1) / NUM_BOXES);
+}*/
+
+vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
+    hitinfo info;
+    vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
+    vec3 mask = vec3(1.0f, 1.0f, 1.0f);
+    for(int bounces = 0; bounces < 3; bounces++){
+
+        if(!intersectBoxes(origin, 1.0/dir, info)){
+            return accum_color += mask * vec3(0.15f, 0.15f, 0.25f);
+        }
+        box hitbox = boxes[info.i];
+        vec3 hitpoint = origin + dir * info.near;
+        
+        //vec3 normal = normalize(hitpoint - ((hitbox.min + hitbox.max) / 2.0f)); //calculating normal for SPHERE, not RECTANGULAR PRISM
+        vec3 normal = info.normal;
+        if(dot(normal, dir) > 0){
+            normal = -normal;
+        }
+        
+        vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
+        
+        float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
+        float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
+        float rand2s = sqrt(rand2);
+        
+        vec3 w = normal_facing;
+        vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+        vec3 u = normalize(cross(axis, w));
+        vec3 v = cross(w, u);
+        
+        vec3 newdir = normalize(u*cos(rand1)*rand2s + v*sin(rand1)*rand2s + w*sqrt(1.0f - rand2));
+        //vec3 newdir = normalize(u + v + w);
+        //vec3 newdir = cross(dir, normalize(u + v + w));
+        //vec3 newdir = normal;
+        
+        origin = hitpoint + normal_facing * EPSILON;
+        dir = newdir;
+        
+        accum_color += mask * hitbox.emi;
+        mask *= hitbox.color;
+        mask *= dot(newdir, normal_facing);
+    }
+    return accum_color;
+}
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main(void) {
+  ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+  ivec2 size = imageSize(framebufferImage);
+  if (any(greaterThanEqual(px, size)))
+    return;
+  vec2 p = (vec2(px) + vec2(0.5)) / vec2(size);
+  //vec2 p = (vec2(px) / vec2(size));
+  vec3 dir = mix(mix(cam[1], cam[2], p.y), mix(cam[3], cam[4], p.y), p.x);
+  
+  
+  vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
+  int samples = SAMPLES;
+  float invsamples = 1.0f / SAMPLES;
+  
+  for(int i = 0; i < samples; i++){
+    finalcolor += trace(cam[0], normalize(dir), 
+        px.x + rand(vec2(i, i)) + rand(vec2(i+1, i+1) + frameNumber), 
+        px.y + rand(vec2(i, i)) + rand(vec2(i+1, i+1)) + frameNumber) * invsamples;
+    //finalcolor += trace(cam[0], normalize(dir), wang_hash(px.x*samples + i), wang_hash(px.y*samples + i)) * invsamples;
+  }
+  vec3 tempColor = finalcolor;
+  /*if(frameNumber > 0){
+    tempColor = imageLoad(framebufferImage, px).xyz + finalcolor;
+    float temp = frameNumber;
+    tempColor = tempColor / temp;  
+    tempColor = vec3(
+        clamp(tempColor.x, 0.0f, 1.0f),
+        clamp(tempColor.y, 0.0f, 1.0f),
+        clamp(tempColor.z, 0.0f, 1.0f)
+    );
+  }*/
+  
+  imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));
+}

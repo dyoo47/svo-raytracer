@@ -1,0 +1,29 @@
+{
+    "java.project.referencedLibraries": {
+        "include": [
+            "lib/**/*.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-assimp-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-cuda-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-glfw-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-openal-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-opencl-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-opengl-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-sources.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-stb-sources.jar"
+        ],
+        "exclude": [
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-assimp-natives-windows.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-assimp.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-cuda-javadoc.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-openal-javadoc.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-natives-windows.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-opencl-javadoc.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-opencl.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-opengl.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-stb-javadoc.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-stb-natives-windows.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-glfw.jar",
+            "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-cuda.jar"
+        ]
+    }
+}
