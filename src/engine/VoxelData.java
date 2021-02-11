@@ -130,11 +130,11 @@ public class VoxelData {
     }
 
     public void sampleSphere(int x, int y, int z){
-
-        int sphereX = 128;
-        int sphereY = 128;
-        int sphereZ = 128;
-        int sphereRadius = 32;
+        System.out.println("sampling sphere");
+        int sphereX = 16;
+        int sphereY = 16;
+        int sphereZ = 16;
+        int sphereRadius = 16;
 
         for(int i = 0; i < width; i++){
             for(int j = 0; j < height; j++){
@@ -145,6 +145,16 @@ public class VoxelData {
                     }else{
                         fastSet(i, j, k, (byte) 0);
                     }
+                }
+            }
+        }
+    }
+
+    public void sampleFull(int x, int y, int z){
+        for(int i = 0; i < width; i++){
+            for(int j = 0; j < height; j++){
+                for(int k = 0; k < depth; k++){
+                    fastSet(i, j, k, (byte) 1);
                 }
             }
         }

@@ -1,7 +1,10 @@
 package engine;
 
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
+
+import org.lwjgl.BufferUtils;
 
 public class Octree {
 
@@ -11,22 +14,32 @@ public class Octree {
     int bufferSize = 0;
 
     static int NODE_SIZE = 8;
+    // static byte[][] childOffsets = {
+    //         {0, 0, 0},
+    //         {0, 0, 1},
+    //         {0, 1, 0},
+    //         {0, 1, 1},
+    //         {1, 0, 0},
+    //         {1, 0, 1},
+    //         {1, 1, 0},
+    //         {1, 1, 1}
+    // };
     static byte[][] childOffsets = {
-            {0, 0, 0},
-            {0, 0, 1},
-            {0, 1, 0},
-            {0, 1, 1},
-            {1, 0, 0},
-            {1, 0, 1},
-            {1, 1, 0},
-            {1, 1, 1}
+                {0, 0, 0},
+                {1, 0, 0},
+                {0, 1, 0},
+                {1, 1, 0},
+                {0, 0, 1},
+                {1, 0, 1},
+                {0, 1, 1},
+                {1, 1, 1}
     };
 
     public Octree(int memSizeKB, byte size, VoxelData voxelData){
         bufferSize = memSizeKB * 1024;
         buffer = ByteBuffer.allocate(bufferSize);
         mem = buffer.array();
-        createNode(size, voxelData.get(0, 0, 0), new byte[]{0, 0, 0}, false);
+        createNode(size, (byte) 1, new byte[]{0, 0, 0}, false);
     }
 
     /*
@@ -66,6 +79,34 @@ public class Octree {
 
     public void clear(){
         buffer.clear();
+    }
+
+    public ByteBuffer getByteBuffer(){
+        ByteBuffer out = BufferUtils.createByteBuffer(memOffset);
+        for(int i=0; i < memOffset; i++){
+            out.put(i, buffer.get(i));
+        }
+        return out;
+    }
+
+    public IntBuffer getIntBuffer(){
+        IntBuffer out = BufferUtils.createIntBuffer(memOffset);
+        int t = 0;
+        for(int i=0; i < memOffset; i++){
+            if(t == 5){
+                out.put(i, buffer.getShort(i));
+            }else if(t == 6){
+                out.put(i, 0);
+            }else{
+                out.put(i, buffer.get(i));
+            }
+            t++;
+            if(t == 8) t=0;
+        }
+        // for(int i=0; i < memOffset; i++){
+        //     out.put(i, buffer.get(i));
+        // }
+        return out;
     }
 
     private int createNode(byte size, byte val, byte[] pos, boolean isLeaf){
@@ -134,32 +175,43 @@ public class Octree {
                     (byte)(pPos[2] + childOffsets[n][2] * cSize)
             };
             byte first = data.get(cPos[0], cPos[1], cPos[2]);
-            boolean empty = true;
+            byte value = first;
+            boolean isLeaf = true;
             for(int i = cPos[0]; i < cPos[0] + cSize; i++){
                 for(int j = cPos[1]; j < cPos[1] + cSize; j++){
                     for(int k = cPos[2]; k < cPos[2] + cSize; k++){
+                        if(data.get(i, j, k) != 0){
+                            value = data.get(i, j, k);
+                        }
                         if(data.get(i, j, k) != first){
-                            empty = false;
+                            if(first == 0) first = data.get(i, j, k);
+                            value = first;
+                            isLeaf = false;
                             break;
                         }
+                        // if(data.get(i, j, k) != 0){
+                        //     first = data.get(i, j, k);
+                        //     valid = false;
+                        //     break;
+                        // }
                     }
-                    if(!empty) break;
+                    if(!isLeaf) break;
                 }
-                if(!empty) break;
+                if(!isLeaf) break;
             }
             //child nodes must be made consecutively - allows for only one pointer per node
-            if(cSize == 1 || maxLOD == curLOD) empty = true;
+            //if(cSize == 1 || maxLOD == curLOD) valid = true;
             if(n == 0){
-                firstPointer = createNode(cSize, first, cPos, empty);
+                firstPointer = createNode(cSize, value, cPos, isLeaf);
             }else{
-                createNode(cSize, first, cPos, empty);
+                createNode(cSize, value, cPos, isLeaf);
             }
         }
         if(firstPointer != -1)
             setChildPointer(parentNode, (short)firstPointer);
         for(int n = 0; n < 8; n++){
             int pointer = firstPointer + (n * NODE_SIZE);
-            if(!isLeaf(pointer) && curLOD < maxLOD && getSize(parentNode) > 1){
+            if(!isLeaf(pointer) && curLOD < maxLOD){ //this line
                 constructOctree(data, maxLOD, curLOD + 1, pointer);
             }
         }
@@ -167,7 +219,7 @@ public class Octree {
 
     public ArrayList<Integer> getChildrenAtLOD(int maxLOD, int curLOD, int origin){
         ArrayList<Integer> target = new ArrayList<>();
-        if(isLeaf(origin) || maxLOD == curLOD || getSize(origin) == 1){
+        if(isLeaf(origin) || maxLOD == curLOD){
             if(getValue(origin) == 1){
                 target.add(origin);
             }
