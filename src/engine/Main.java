@@ -85,7 +85,7 @@ public class Main {
         //--INITIALIZE
         System.out.print("creating voxel data...");
         VoxelData voxelData = new VoxelData(32, 32, 32);
-        voxelData.sampleSphere(0, 0, 0);
+        voxelData.sampleMod(0, 0, 0);
         Octree octree = new Octree(100, (byte)32, voxelData);
         octree.constructOctree(voxelData, 4, 0, 0);
         octree.logBuffer(32);
