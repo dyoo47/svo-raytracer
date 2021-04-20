@@ -1,5 +1,3 @@
-package engine;
-
 public class VoxelData {
 
     byte[] data;

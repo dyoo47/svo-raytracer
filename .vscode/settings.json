@@ -25,5 +25,8 @@
             "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-glfw.jar",
             "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-cuda.jar"
         ]
-    }
+    },
+    "java.project.sourcePaths": [
+        "src/engine"
+    ]
 }

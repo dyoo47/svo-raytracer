@@ -1,5 +1,3 @@
-package engine;
-
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 import static org.lwjgl.glfw.GLFW.*;

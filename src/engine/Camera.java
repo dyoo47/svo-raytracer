@@ -1,5 +1,3 @@
-package engine;
-
 public class Camera {
     
     float[] pos;
