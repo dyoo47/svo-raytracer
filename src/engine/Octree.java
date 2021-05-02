@@ -52,6 +52,31 @@ public class Octree {
     7 :: is leaf boolean - 1 byte
      */
 
+    /*
+    NEW NODE STRUCTURE
+    LOWER NODE
+    0 :: value - 1 byte
+    1 :: child pointer - 4 bytes
+    2 ::
+    3 ::
+    4 ::
+    5 :: valid mask
+    6 :: leaf mask
+
+    UPPER NODE
+    0 :: valid mask
+    1 :: loaded mask
+    2 :: child pointer - 15 bits
+    3 ::
+    4 :: far flag - 1 bit
+
+    UPPER LEAF NODE
+    0 :: chunk pointer - 4 bytes
+    1 ::
+    2 ::
+    3 ::
+    */
+
     public void logBuffer(int length){
         int t = 0;
         System.out.println("BEGIN BUFFER******************");

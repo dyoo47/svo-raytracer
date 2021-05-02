@@ -158,10 +158,10 @@ retInfo intersectBox(vec3 origin, vec3 invdir, box b) {
 struct castResult {
   Node node;
   float t;
-  uint childIdx;
   bool hit;
   uint scale;
   vec3 debugColor;
+  vec3 normal;
 };
 
 struct stackEntry {
@@ -202,7 +202,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   float ty_bias = ty_coef * origin.y;
   float tz_bias = tz_coef * origin.z;
 
-  uint octant_mask = 0; 
+  uint octant_mask = 7; 
   if(dir.x > 0.0f) octant_mask ^= 1u, tx_bias = 3.0f * tx_coef - tx_bias;
   if(dir.y > 0.0f) octant_mask ^= 2u, ty_bias = 3.0f * ty_coef - ty_bias;
   if(dir.z > 0.0f) octant_mask ^= 4u, tz_bias = 3.0f * tz_coef - tz_bias;
@@ -259,7 +259,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
 
         //PUSH
         if(tc_max < h){
-          stackEntry se = {parent, t_max};
+          stackEntry se = {parent, t_max}; 
           octstack[scale] = se;
         }
         h = tc_max;
@@ -316,7 +316,8 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   if(scale >= MAX_SCALE){
     t_min = 2.0f;
     res.hit = false;
-    res.debugColor = vec3(1.0, 0.3, 0.3);
+    //res.debugColor = vec3(0, 0, 0);
+    res.debugColor = vec3(0.02) * iter;
     return false;
   }
   
@@ -328,12 +329,19 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   hitpos.y = min(max(origin.y + t_min * dir.y, pos.y + eps), pos.y + scale_exp2 - eps);
   hitpos.z = min(max(origin.z + t_min * dir.z, pos.z + eps), pos.z + scale_exp2 - eps);
 
+  float tx_corner = tx_coef * (pos.x + scale_exp2) - tx_bias;
+  float ty_corner = ty_coef * (pos.y + scale_exp2) - ty_bias;
+  float tz_corner = tz_coef * (pos.z + scale_exp2) - tz_bias;
+  vec3 norm = (tx_corner > ty_corner && tx_corner > tz_corner)
+    ? vec3(-1, 0, 0)
+    : (ty_corner > tz_corner ? vec3(0, -1, 0) : vec3(0, 0, -1));
+
   res.t = t_min;
   res.node = extractNode(child_descriptor);
-  res.childIdx = idx ^ octant_mask;
+  res.normal = norm;
   res.scale = scale;
   res.hit = true;
-  res.debugColor = vec3(0.3, 1.0, 0.3);
+  res.debugColor = vec3(0.02) * iter;
 
   return scale < MAX_SCALE && t_min <= t_max;
 }
@@ -346,9 +354,11 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   if(intersectOctree(origin, dir, 1.0/dir, res)){
-    return materials[res.node.value].color;
+    return res.debugColor;
+    //return materials[res.node.value].color;
   }else{
-    return vec3(0.2, 0.2, 0.2);
+    return res.debugColor;
+    //return vec3(0);
   }
 }
 
