@@ -1,5 +1,4 @@
 import org.lwjgl.BufferUtils;
-import org.lwjgl.glfw.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.opengl.GL43C.*;
@@ -83,12 +82,14 @@ public class Main {
     glfwShowWindow(window);
 
     //--INITIALIZE
-    System.out.print("creating voxel data...");
-    VoxelData voxelData = new VoxelData(64, 64, 64);
+    //System.out.print("creating voxel data...");
+    VoxelData voxelData = new VoxelData(128, 128, 128);
     voxelData.sampleMod(0, 0, 0);
-    Octree octree = new Octree(800, (byte)64, voxelData);
-    octree.constructOctree(voxelData, 4, 0, 0);
-    octree.logBuffer(32);
+    //Octree octree = new Octree(800, (byte)64, voxelData);
+    //octree.constructOctree(voxelData, 4, 0, 0);
+    EfficientOctree eo = new EfficientOctree(10000, (byte)1, voxelData);
+    eo.constructOctree(voxelData, 6);
+    //octree.logBuffer(32);
 
 
     IntBuffer out = BufferUtils.createIntBuffer(1);
@@ -97,21 +98,45 @@ public class Main {
     ssbo = glGenBuffers();
     int bindIndex = 7;
     int blockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "shaderStorage");
-    ByteBuffer buffer = octree.getByteBuffer();
+    //ByteBuffer buffer = octree.getByteBuffer();
     glShaderStorageBlockBinding(computeProgram, blockIndex, bindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
+    ByteBuffer buffer = eo.getByteBuffer();
+    //System.out.println("--------------------");
+    //int childPointer = (buffer.get(1) << 24) + (buffer.get(2) << 16) + (buffer.get(3) << 8) + (buffer.get(4));
+    //System.out.println(buffer.get(1) + ", " + buffer.get(2) + ", " + buffer.get(3));
+    // System.out.println("mem offset: " + eo.memOffset);
+    // for(int i=0; i < 100; i++){
+    //   System.out.println(i + ", " + buffer.get(i));
+    // }
+    
+    //int[] testbuffer = {0, 0, 0x00000007, 0x0000000c};
+    //for(int i=0; i < 4; i++){
+      //System.out.println(testbuffer[i]);
+    //}
+    //int testint = (testbuffer[0] << 24) + (testbuffer[1] << 16) + (testbuffer[2] << 8) + (testbuffer[3] << 0);
+    //System.out.println(testint);
+    // for(int i = 0; i < 32; i++){
+    //   int r = i % 4;
+    //   int index = i / 4;
+    //   int converted = (testbuffer[index] & (0x000000ff << (r*8))) >> (r*8);
+    //   System.out.println("BYTE CONVERSION: " + converted);
+    // }
+    
     Camera cam = new Camera();
     cam.setPos(0, 0, 20);
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
-    System.out.println("memoffset: " + octree.memOffset);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, octree.getIntBuffer(), GL_DYNAMIC_DRAW);
-    System.out.println("test index: " + buffer.get(1));
+    //System.out.println("memoffset: " + octree.memOffset);
+    //glBufferData(GL_SHADER_STORAGE_BUFFER, octree.getIntBuffer(), GL_DYNAMIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
+    //System.out.println("test index: " + buffer.get(1));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo);
     glGetBufferParameteriv(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, out);
+
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    System.out.println("buffer size: " + out.get(0));
+    //System.out.println("buffer size: " + out.get(0));
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -124,9 +149,9 @@ public class Main {
       //Update frame
       frameNumber++;
       glUniform1i(5, frameNumber);
-
+      glUniform1i(9, eo.memOffset);
       //Write octree buffer size to uniform
-      glUniform1i(6, octree.memOffset);
+      //glUniform1i(6, octree.memOffset);
 
       //Update camera position
       if(Input.keyDown(Input.MOVE_FORWARD)){

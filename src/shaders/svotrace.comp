@@ -6,16 +6,17 @@ layout(location = 0) uniform vec3 cam[5] = {
   vec3(1.0, -1.0, -1.0), vec3(1.0, 1.0, -1.0) // <- right corner directions
 };
 layout(location = 5) uniform int frameNumber;
-layout(location = 6) uniform int bufferEnd;
 uniform isamplerBuffer bufferTex;
 layout(std430, binding = 7) buffer shaderStorage{
-  int[] octreeBuffer;
+  uint[] octreeBuffer;
 };
 layout(location = 8) uniform vec3 camPos;
-layout(location = 9) uniform vec3 l1;
-layout(location = 10) uniform vec3 l2;
-layout(location = 11) uniform vec3 r1;
-layout(location = 12) uniform vec3 r2;
+//layout(location = 9) uniform vec3 l1;
+//layout(location = 10) uniform vec3 l2;
+//layout(location = 11) uniform vec3 r1;
+//layout(location = 12) uniform vec3 r2;
+layout(location = 9) uniform int bufferEnd;
+int endOffset = bufferEnd / 4 + 1;
 //uniform int newBuffer = 0;
 struct box {
   vec3 min, max, color, emi;
@@ -41,7 +42,8 @@ uint wang_hash(uint seed)
 #define EPSILON 3.552713678800501e-15f
 #define PI 3.14159265359f
 #define SAMPLES 1
-#define NODE_SIZE 8
+#define NODE_SIZE 6
+#define LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define INDEX_SIZE 4
 #define MAX_RAYCAST_ITERATIONS 1000
@@ -77,31 +79,61 @@ const Material materials[8] = {
 };
 
 vec3 debugColor = vec3(1, 1, 1);
+bool debugFlag = false;
+
+int getByte(uint bytePointer){
+  uint r = bytePointer % 4;
+  uint i = bytePointer / 4;
+  return int((octreeBuffer[i] & (0x000000ff << (r*8u))) >> (r*8u));
+}
 
 struct Node{
-    int size;
     int value;
-    vec3 pos;
     int cp;
-    int isLeaf;     
+    int leafMask;     
 };
 
 Node extractNode(uint nodePointer){
+  //if(nodePointer >= 467 && nodePointer <= 473) debugFlag = true;
+  if(nodePointer == 12) debugFlag = true;
   Node ret = {
-    octreeBuffer[nodePointer++],
-    octreeBuffer[nodePointer++],
-    vec3(
-      octreeBuffer[nodePointer++],
-      octreeBuffer[nodePointer++],
-      octreeBuffer[nodePointer++]
-    ),
-    octreeBuffer[nodePointer++] | (octreeBuffer[nodePointer++]),
-    octreeBuffer[nodePointer++]
+    getByte(nodePointer++),
+    (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
+    getByte(nodePointer++)
   };
+  //if(ret.leafMask != 0) debugFlag = true;
+  //if(ret.cp < 0) debugFlag = true;
   return ret;
 }
-int testPointer = 0;
-Node rootTest = extractNode(testPointer);
+
+Node extractLeaf(uint nodePointer){
+  Node ret = {getByte(nodePointer), 0, 0};
+  return ret;
+}
+
+Node extractChild(uint childPointer, uint child, int leafMask){
+  int i = 0;
+  uint pointer = childPointer;
+  //if(leafMask == 0xff) debugFlag = true;
+  while(i < child){
+    if((leafMask & (0x00000001 << i)) == (0x00000001 << i)){ //TODO: leafmask is always 0 for some reason
+      //debugFlag = true;
+      pointer += LEAF_SIZE;
+    }else{
+      pointer += NODE_SIZE;
+    }
+    i++;
+  }
+  if((leafMask & (0x00000001 << child)) == (0x00000001 << child)){
+    //debugFlag = true;
+    return extractLeaf(pointer);
+  }else{
+    return extractNode(pointer);
+  }
+}
+
+//int testPointer = 0;
+//Node rootTest = extractNode(testPointer);
 
 void createCamRay(Ray ray, int x_coord, int y_coord, int width, int height){
     float fx = float(x_coord) / float(width);
@@ -188,6 +220,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   }
   stack_reset();
   Node parent = extractNode(0);
+
   int iter = 0;
 
   if(abs(dir.x) < eps) dir.x = eps * sign(dir.x);
@@ -239,7 +272,14 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
     float tc_max = min(min(tx_corner, ty_corner), tz_corner);
 
     uint child_shift = idx ^ octant_mask;
-    Node child = extractNode(child_descriptor + child_shift * NODE_SIZE);
+
+    if(endOffset < (bufferEnd/4) + 250){
+      octreeBuffer[endOffset++] = child_descriptor;
+    }
+
+    if(child_descriptor < 0) debugFlag = true;
+
+    Node child = extractChild(child_descriptor, child_shift, parent.leafMask);
     if(child.value != 0 && t_min <= t_max){ //check if voxel exists
       // if(child.cp == 0 && child.value != 0){
       //   res.hit = true;
@@ -288,7 +328,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
     t_min = tc_max;
     idx ^= step_mask;
 
-    //POP - experiment here next
+    //POP
     if((idx & step_mask) != 0){
       uint differing_bits = 0;
       if((step_mask & 1u) != 0) differing_bits |= floatBitsToUint(pos.x) ^ floatBitsToUint(pos.x + scale_exp2);
@@ -337,7 +377,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
     : (ty_corner > tz_corner ? vec3(0, -1, 0) : vec3(0, 0, -1));
 
   res.t = t_min;
-  res.node = extractNode(child_descriptor);
+  //res.node = extractNode(child_descriptor);
   res.normal = norm;
   res.scale = scale;
   res.hit = true;
@@ -384,8 +424,8 @@ void main(void) {
   }
   vec3 tempColor = finalcolor;
 
-  Node debugNode = extractNode(16);
-  if(debugNode.cp == 72) debugColor = vec3(0, 1, 0);
+  //Node debugNode = extractNode(407);
+  if(debugFlag) debugColor = vec3(0, 1, 0);
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));

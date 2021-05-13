@@ -151,6 +151,22 @@ public class Octree {
         return pointer;
     }
 
+    // private int createNode(byte val, byte validMask, byte leafMask){
+    //     if(memOffset + NODE_SIZE > mem.length){
+    //         System.out.println("Buffer Overflow!");
+    //         return -2;
+    //     }
+    //     int pointer = memOffset;
+    //     mem[memOffset++] = val;
+    //     mem[memOffset++] = 0;
+    //     mem[memOffset++] = 0;
+    //     mem[memOffset++] = 0;
+    //     mem[memOffset++] = 0;
+    //     mem[memOffset++] = validMask;
+    //     mem[memOffset++] = leafMask;
+    //     return pointer;
+    // }
+
     private void setChildPointer(int parentNode, short childPointer){
         //mem[parentNode + 5] = (byte) (childPointer & 0xFF);
         //mem[parentNode + 6] = (byte) ((childPointer >> 8) & 0xFF);
