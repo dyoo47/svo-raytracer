@@ -129,10 +129,10 @@ public class VoxelData {
 
     public void sampleSphere(int x, int y, int z){
         System.out.println("sampling sphere");
-        int sphereX = 16;
-        int sphereY = 16;
-        int sphereZ = 16;
-        int sphereRadius = 16;
+        int sphereX = 64;
+        int sphereY = 64;
+        int sphereZ = 64;
+        int sphereRadius = 64;
 
         for(int i = 0; i < width; i++){
             for(int j = 0; j < height; j++){

@@ -58,13 +58,10 @@ public class EfficientOctree {
   }
 
   private void setChildPointer(int parentNode, int childPointer){
-    //System.out.println("SETTING CHILD POINTER AT " + parentNode + " WITH VALUE: " + childPointer);
     buffer.putInt(parentNode + 1, childPointer);
   }
 
   private void setLeafMask(int parentNode, byte leafMask){
-    if(parentNode + 5 >= 400 && parentNode + 5 <= 500)
-      System.out.println("setting leafmask " + (parentNode + 5));
     buffer.put(parentNode + 5, leafMask);
   }
 
@@ -121,7 +118,6 @@ public class EfficientOctree {
       if(leaf) leafMask |= (0x01 << n);
     }
     setChildPointer(parentPointer, children[0]);
-    //if(leafMask != 0) System.out.println("WTF??");
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
       if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){

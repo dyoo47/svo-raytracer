@@ -11,13 +11,8 @@ layout(std430, binding = 7) buffer shaderStorage{
   uint[] octreeBuffer;
 };
 layout(location = 8) uniform vec3 camPos;
-//layout(location = 9) uniform vec3 l1;
-//layout(location = 10) uniform vec3 l2;
-//layout(location = 11) uniform vec3 r1;
-//layout(location = 12) uniform vec3 r2;
 layout(location = 9) uniform int bufferEnd;
 int endOffset = bufferEnd / 4 + 1;
-//uniform int newBuffer = 0;
 struct box {
   vec3 min, max, color, emi;
   //float3 emi, color;
@@ -273,11 +268,11 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
 
     uint child_shift = idx ^ octant_mask;
 
-    if(endOffset < (bufferEnd/4) + 250){
-      octreeBuffer[endOffset++] = child_descriptor;
-    }
+    // if(endOffset < (bufferEnd/4) + 250){
+    //   octreeBuffer[endOffset++] = child_descriptor;
+    // }
 
-    if(child_descriptor < 0) debugFlag = true;
+    // if(child_descriptor < 0) debugFlag = true;
 
     Node child = extractChild(child_descriptor, child_shift, parent.leafMask);
     if(child.value != 0 && t_min <= t_max){ //check if voxel exists
