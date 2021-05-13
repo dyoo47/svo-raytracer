@@ -84,7 +84,7 @@ public class Main {
     //--INITIALIZE
     System.out.print("creating voxel data...");
     VoxelData voxelData = new VoxelData(128, 128, 128);
-    voxelData.sampleMod(0, 0, 0);
+    voxelData.sample(0, 0, 0);
     EfficientOctree eo = new EfficientOctree(10000, (byte)1, voxelData);
     eo.constructOctree(voxelData, 6);
     System.out.println(" done!");
@@ -103,7 +103,7 @@ public class Main {
 
     
     Camera cam = new Camera();
-    cam.setPos(0, 0, 20);
+    cam.setPos(1.5f, 1.5f, 2.0f);
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
