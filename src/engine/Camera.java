@@ -1,7 +1,6 @@
 import java.nio.FloatBuffer;
 
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
@@ -16,6 +15,8 @@ public class Camera {
     float[] r1 = {scale, -scale, -scale};
     float[] r2 = {scale, scale, -scale};
     float[] rot = {0, 0, 0};
+    float[] dir = {0, 0, 1};
+    float[] right = {1, 0, 0};
 
     public Camera() {
         pos = new float[3];
@@ -32,9 +33,15 @@ public class Camera {
         pos[2] = z;
     }
 
+    public void strafe(float forwardSpeed, float sideSpeed){
+        pos[0] += -dir[0] * speed * forwardSpeed + right[0] * speed * sideSpeed;
+        pos[1] += -dir[1] * speed * forwardSpeed + right[1] * speed * sideSpeed;
+        pos[2] += -dir[2] * speed * forwardSpeed + right[2] * speed * sideSpeed;
+    }
+
     public float[] getPos(){return pos;}
 
-    private float[] convertToCameraAxis(float x, float y, float z){
+    private float[] convertToCameraXAxis(float x, float y, float z){
         float alpha = rot[1];
 
         float xp = (float)(x*Math.cos(alpha) + z*Math.sin(alpha));
@@ -45,9 +52,17 @@ public class Camera {
         return out;
     }
 
+    private FloatBuffer updateDirection(float x, float y, float z){
+        float[] frontf = {0, 0, 1};
+        Vector3f front = new Vector3f(frontf);
+        front.rotateX(x).rotateY(y).rotateZ(z);
+        FloatBuffer out = BufferUtils.createFloatBuffer(3);
+        front.get(out);
+        return out;
+    }
+
     public void rotate(float x, float y, float z){
         
-        //incrementRotation(x, y, z);
         if(rot[0] + x < Constants.CAMERA_LOWER_LIMIT || rot[0] + x > Constants.CAMERA_UPPER_LIMIT){
             if(x > 0) rot[0] = Constants.CAMERA_UPPER_LIMIT;
             else rot[0] = Constants.CAMERA_LOWER_LIMIT;
@@ -60,10 +75,16 @@ public class Camera {
         rot[2] += z;
         rot[2] %= Constants.Math.PI * 2;
         Matrix4f matrix = new Matrix4f();
-        float[] prime = convertToCameraAxis(1, 0, 0);
+        right = convertToCameraXAxis(1, 0, 0);
         
         matrix.rotate(y, 0, 1, 0);
-        matrix.rotate(x, prime[0], prime[1], prime[2]);
+        matrix.rotate(x, right[0], right[1], right[2]);
+
+        FloatBuffer dirf = updateDirection(rot[0], rot[1], rot[2]);
+        dir[0] = dirf.get(0);
+        dir[1] = dirf.get(1);
+        dir[2] = dirf.get(2);
+
         FloatBuffer fBuffer = BufferUtils.createFloatBuffer(16);
         matrix.get(fBuffer);
 
@@ -103,11 +124,6 @@ public class Camera {
         r1 = nr1;
         r2 = nr2;
     }
-
-    public void setRotation(int dir){
-
-    }
-
 
     public float[][] getUniform(){
         float[][] out = {

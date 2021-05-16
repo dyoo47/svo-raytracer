@@ -126,16 +126,17 @@ public class Main {
 
       //Update camera position
       if(Input.keyDown(Input.MOVE_FORWARD)){
-        cam.setPos(cam.pos[0], cam.pos[1], cam.pos[2] - cam.speed);
+        //cam.setPos(cam.pos[0], cam.pos[1], cam.pos[2] - cam.speed);
+        cam.strafe(1, 0);
       }
       if(Input.keyDown(Input.MOVE_BACK)){
-        cam.setPos(cam.pos[0], cam.pos[1], cam.pos[2] + cam.speed);
+        cam.strafe(-1, 0);
       }
       if(Input.keyDown(Input.MOVE_LEFT)){
-        cam.setPos(cam.pos[0] - cam.speed, cam.pos[1], cam.pos[2]);
+        cam.strafe(0, -1);
       }
       if(Input.keyDown(Input.MOVE_RIGHT)){
-        cam.setPos(cam.pos[0] + cam.speed, cam.pos[1], cam.pos[2]);
+        cam.strafe(0, 1);
       }
       if(Input.keyDown(Input.MOVE_UP)){
         cam.setPos(cam.pos[0], cam.pos[1] + cam.speed, cam.pos[2]);
