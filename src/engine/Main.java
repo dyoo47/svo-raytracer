@@ -4,15 +4,12 @@ import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.opengl.GL43C.*;
 import static org.lwjgl.opengl.GLUtil.setupDebugMessageCallback;
 import static org.lwjgl.system.MemoryUtil.*;
-
-
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 public class Main {
 
-    private static final int WINDOW_WIDTH = 800;
-    private static final int WINDOW_HEIGHT = 800;
+    
     private static int frameNumber = 1;
     private static final String QUAD_PROGRAM_VS_SOURCE = Shader.readFromFile("src/shaders/quad.vert");
     private static final String QUAD_PROGRAM_FS_SOURCE = Shader.readFromFile("src/shaders/quad.frag");
@@ -31,7 +28,7 @@ public class Main {
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-    long window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "svoraytracer", NULL, NULL);
+    long window = glfwCreateWindow(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT, "svoraytracer", NULL, NULL);
     if (window == NULL)
         throw new AssertionError("Failed to create the GLFW window");
     Input.setKeybinds(window);
@@ -48,7 +45,7 @@ public class Main {
     int framebuffer = glGenTextures();
     glBindTexture(GL_TEXTURE_2D, framebuffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(0, framebuffer, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 
     // Create program to render framebuffer texture as fullscreen quad
@@ -75,8 +72,8 @@ public class Main {
     glLinkProgram(computeProgram);
     System.out.println(" done!");
     // Determine number of work groups to dispatch
-    int numGroupsX = (int) Math.ceil((double)WINDOW_WIDTH / 8);
-    int numGroupsY = (int) Math.ceil((double)WINDOW_HEIGHT / 8);
+    int numGroupsX = (int) Math.ceil((double)Constants.WINDOW_WIDTH / 8);
+    int numGroupsY = (int) Math.ceil((double)Constants.WINDOW_HEIGHT / 8);
 
     // Make window visible and loop until window should be closed
     glfwShowWindow(window);
@@ -104,6 +101,7 @@ public class Main {
     
     Camera cam = new Camera();
     cam.setPos(1.5f, 1.5f, 2.0f);
+    Input input = new Input(window);
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
@@ -146,16 +144,26 @@ public class Main {
         cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
       }
       if(Input.keyDown(Input.ROTATE_LEFT)){
-        cam.rotate(1);
+        cam.rotate(0.0f, 0.01f, 0.0f);
       }
       if(Input.keyDown(Input.ROTATE_RIGHT)){
-        cam.rotate(-1);
+        cam.rotate(0.0f, -0.01f, 0.0f);
+        //cam.rotateDir(0.0f, -0.01f);
       }
+      if(Input.keyDown(Input.ROTATE_UP)){
+        cam.rotate(0.01f, 0.0f, 0.0f);
+      }
+      if(Input.keyDown(Input.ROTATE_DOWN)){
+        cam.rotate(-0.01f, 0.0f, 0.0f);
+      }
+      double[] mouseDelta = input.getMouseDelta();
+      cam.rotate(0.0f, (float)-mouseDelta[0] * Constants.CAMERA_SENSITIVITY, 0.0f);
+      cam.rotate((float)-mouseDelta[1] * Constants.CAMERA_SENSITIVITY, 0.0f, 0.0f);
       glUniform3fv(8, cam.pos);
-      glUniform3fv(1, cam.getL1());
-      glUniform3fv(2, cam.getL2());
-      glUniform3fv(3, cam.getR1());
-      glUniform3fv(4, cam.getR2());
+      glUniform3fv(1, cam.l1);
+      glUniform3fv(2, cam.l2);
+      glUniform3fv(3, cam.r1);
+      glUniform3fv(4, cam.r2);
       // Display framebuffer texture
       glUseProgram(quadProgram);
       glDrawArrays(GL_TRIANGLES, 0, 3);

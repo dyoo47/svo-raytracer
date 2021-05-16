@@ -111,7 +111,7 @@ Node extractChild(uint childPointer, uint child, int leafMask){
   uint pointer = childPointer;
   //if(leafMask == 0xff) debugFlag = true;
   while(i < child){
-    if((leafMask & (0x00000001 << i)) == (0x00000001 << i)){ //TODO: leafmask is always 0 for some reason
+    if((leafMask & (0x00000001 << i)) == (0x00000001 << i)){ 
       //debugFlag = true;
       pointer += LEAF_SIZE;
     }else{
