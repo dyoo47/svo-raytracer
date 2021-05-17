@@ -20,7 +20,7 @@ public class EfficientOctree {
     {1, 1, 1}
   };
 
-  public EfficientOctree(int memSizeKB, byte size, VoxelData voxelData){
+  public EfficientOctree(int memSizeKB, VoxelData voxelData){
     bufferSize = memSizeKB * 1024;
     buffer = ByteBuffer.allocate(bufferSize);
     mem = buffer.array();

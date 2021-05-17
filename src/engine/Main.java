@@ -83,8 +83,8 @@ public class Main {
     //--INITIALIZE
     System.out.print("creating voxel data...");
     VoxelData voxelData = new VoxelData(256, 256, 256);
-    voxelData.sampleRidges(0, 0, 0);
-    EfficientOctree eo = new EfficientOctree(100000, (byte)1, voxelData);
+    voxelData.sample(0, 0, 0);
+    EfficientOctree eo = new EfficientOctree(100000, voxelData);
     eo.constructOctree(voxelData, 7);
     System.out.println(" done!");
 

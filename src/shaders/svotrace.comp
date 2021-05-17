@@ -41,7 +41,7 @@ uint wang_hash(uint seed)
 #define LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define INDEX_SIZE 4
-#define MAX_RAYCAST_ITERATIONS 1000
+#define MAX_RAYCAST_ITERATIONS 10000
 
 struct hitinfo {
   float near;
@@ -53,8 +53,6 @@ struct Ray {
     vec3 origin;
     vec3 dir;
 };
-
-const int levels = 8;
 
 struct Material{
   vec3 color;
@@ -118,24 +116,6 @@ Node extractChild(uint childPointer, uint child, int leafMask){
   }else{
     return extractNode(pointer);
   }
-}
-
-//int testPointer = 0;
-//Node rootTest = extractNode(testPointer);
-
-void createCamRay(Ray ray, int x_coord, int y_coord, int width, int height){
-    float fx = float(x_coord) / float(width);
-    float fy = float(y_coord) / float(height);
-    
-    float aspect_ratio = float(width) / float(height);
-    float fx2 = (fx - 0.5f) * aspect_ratio;
-    float fy2 = fy - 0.5f;
-    
-    vec3 pixel_pos = vec3(fx2, -fy2, 0.0f);
-    //Ray ray;
-    ray.origin = vec3(0.0, 2.0, 5.0);
-    ray.dir = normalize(pixel_pos - ray.origin);
-    //camray = ray;
 }
 
 struct retInfo{
@@ -233,7 +213,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   float t_min = max(max(2.0f * tx_coef - tx_bias, 2.0f * ty_coef - ty_bias), 2.0f * tz_coef - tz_bias);
   float t_max = min(min(tx_coef - tx_bias, ty_coef - ty_bias), tz_coef - tz_bias);
   t_min = max(t_min, 0.0f);
-  t_max = min(t_max, 1.0f);
+  //t_max = min(t_max, 1.0f);
   float h = t_max;
 
   uint idx = 0;
@@ -296,7 +276,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
 
         parent = child; //??????????
 
-        idx = 0;
+        idx = 0u;
         scale--;
         scale_exp2 = one_half;
 
@@ -372,7 +352,8 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   res.scale = scale;
   res.hit = true;
   res.normal = norm;
-  res.debugColor = vec3(0.01) * iter;
+  res.debugColor = vec3(0.005) * iter;
+  //res.debugColor = vec3(0.01 * iter, 1 - 0.01 * scale, 0.0);
 
   return scale < MAX_SCALE && t_min <= t_max;
 }
