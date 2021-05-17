@@ -63,7 +63,7 @@ struct Material{
 };
 
 const Material materials[8] = {
-  {{1.0f, 1.0f, 1.0f}, {0.2f, 0.2f, 0.2f}, 0.3f},
+  {{1.0f, 1.0f, 1.0f}, {0.8f, 0.8f, 0.8f}, 0.3f},
   {{1.0f, 0.9f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{1.0f, 0.8f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{1.0f, 0.7f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
@@ -74,7 +74,6 @@ const Material materials[8] = {
 };
 
 vec3 debugColor = vec3(1, 1, 1);
-bool debugFlag = false;
 
 int getByte(uint bytePointer){
   uint r = bytePointer % 4;
@@ -89,15 +88,11 @@ struct Node{
 };
 
 Node extractNode(uint nodePointer){
-  //if(nodePointer >= 467 && nodePointer <= 473) debugFlag = true;
-  if(nodePointer == 12) debugFlag = true;
   Node ret = {
     getByte(nodePointer++),
     (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
     getByte(nodePointer++)
   };
-  //if(ret.leafMask != 0) debugFlag = true;
-  //if(ret.cp < 0) debugFlag = true;
   return ret;
 }
 
@@ -109,7 +104,6 @@ Node extractLeaf(uint nodePointer){
 Node extractChild(uint childPointer, uint child, int leafMask){
   int i = 0;
   uint pointer = childPointer;
-  //if(leafMask == 0xff) debugFlag = true;
   while(i < child){
     if((leafMask & (0x00000001 << i)) == (0x00000001 << i)){ 
       //debugFlag = true;
@@ -120,7 +114,6 @@ Node extractChild(uint childPointer, uint child, int leafMask){
     i++;
   }
   if((leafMask & (0x00000001 << child)) == (0x00000001 << child)){
-    //debugFlag = true;
     return extractLeaf(pointer);
   }else{
     return extractNode(pointer);
@@ -185,7 +178,7 @@ retInfo intersectBox(vec3 origin, vec3 invdir, box b) {
   */
   
 struct castResult {
-  Node node;
+  uint value;
   float t;
   bool hit;
   uint scale;
@@ -232,7 +225,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
   float ty_bias = ty_coef * origin.y;
   float tz_bias = tz_coef * origin.z;
 
-  uint octant_mask = 7; 
+  uint octant_mask = 0; 
   if(dir.x > 0.0f) octant_mask ^= 1u, tx_bias = 3.0f * tx_coef - tx_bias;
   if(dir.y > 0.0f) octant_mask ^= 2u, ty_bias = 3.0f * ty_coef - ty_bias;
   if(dir.z > 0.0f) octant_mask ^= 4u, tz_bias = 3.0f * tz_coef - tz_bias;
@@ -354,7 +347,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
     t_min = 2.0f;
     res.hit = false;
     //res.debugColor = vec3(0, 0, 0);
-    res.debugColor = vec3(0.02) * iter;
+    res.debugColor = vec3(0.005) * iter;
     return false;
   }
   
@@ -374,11 +367,12 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
     : (ty_corner > tz_corner ? vec3(0, -1, 0) : vec3(0, 0, -1));
 
   res.t = t_min;
-  //res.node = extractNode(child_descriptor);
+  res.value = extractNode(child_descriptor).value;
   res.normal = norm;
   res.scale = scale;
   res.hit = true;
-  res.debugColor = vec3(0.02) * iter;
+  res.normal = norm;
+  res.debugColor = vec3(0.01) * iter;
 
   return scale < MAX_SCALE && t_min <= t_max;
 }
@@ -387,9 +381,43 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res){
 vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
   castResult res;
   res.t = 2.0f;
-  Node outnode;
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
+  // for(int bounces = 0; bounces < 2; bounces++){
+  //   if(!intersectOctree(origin, dir, 1.0/dir, res) && bounces == 0) return vec3(0);
+  //   vec3 hitpoint = origin + res.t * dir;
+  //   vec3 normal = res.normal;
+  //   if(dot(normal, dir) > 0){
+  //     normal = -normal;
+  //   }
+  //   vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
+
+  //   float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
+  //   float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
+  //   float rand2s = sqrt(rand2);
+    
+  //   vec3 w = normal_facing;
+  //   vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+  //   vec3 u = normalize(cross(axis, w));
+  //   vec3 v = cross(w, u);
+
+  //   vec3 newdir = normalize(u*cos(rand1)*rand2s + v*sin(rand1)*rand2s + w*sqrt(1.0f - rand2));
+  //   origin = hitpoint + normal_facing * EPSILON;
+  //   dir = newdir;
+
+  //   Material mat;
+  //   if(res.value == 1){
+  //     mat = materials[1];
+  //   }
+  //   if(res.value == 0){
+  //     mat = materials[0];
+  //   }
+  //   accum_color += mask * mat.emission;
+  //   mask *= mat.color;
+  //   mask *= dot(newdir, normal_facing);
+  // }
+
+  // return accum_color;
   if(intersectOctree(origin, dir, 1.0/dir, res)){
     return res.debugColor;
     //return materials[res.node.value].color;
@@ -422,7 +450,7 @@ void main(void) {
   vec3 tempColor = finalcolor;
 
   //Node debugNode = extractNode(407);
-  if(debugFlag) debugColor = vec3(0, 1, 0);
+  //if(debugFlag) debugColor = vec3(0, 1, 0);
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));

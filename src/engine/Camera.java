@@ -8,12 +8,12 @@ public class Camera {
     
     float[] pos;
     float speed;
-    float tspeed;
-    float scale = 0.1f;
-    float[] l1 = {-scale, -scale, -scale};
-    float[] l2 = {-scale, scale, -scale};
-    float[] r1 = {scale, -scale, -scale};
-    float[] r2 = {scale, scale, -scale};
+    float scaleX = 0.9f;
+    float scaleY = 1.6f;
+    float[] l1 = {-scaleY, -scaleX, -1};
+    float[] l2 = {-scaleY, scaleX, -1};
+    float[] r1 = {scaleY, -scaleX, -1};
+    float[] r2 = {scaleY, scaleX, -1};
     float[] rot = {0, 0, 0};
     float[] dir = {0, 0, 1};
     float[] right = {1, 0, 0};
@@ -24,7 +24,10 @@ public class Camera {
         pos[1] = 0.0f;
         pos[2] = 0.0f;
         speed  = 0.005f;
-        tspeed = 0.1f;
+    }
+
+    public void setSpeed(float speed){
+        this.speed = speed;
     }
 
     public void setPos(float x, float y, float z){

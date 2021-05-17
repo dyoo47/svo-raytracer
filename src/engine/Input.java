@@ -16,6 +16,9 @@ public class Input {
     public static final int ROTATE_RIGHT = GLFW_KEY_RIGHT;
     public static final int ROTATE_DOWN = GLFW_KEY_DOWN;
     public static final int ROTATE_UP = GLFW_KEY_UP;
+    public static final int SPEED_TURBO = GLFW_KEY_LEFT_SHIFT;
+    public static final int SPEED_SLOW = GLFW_KEY_LEFT_CONTROL;
+    
     long window;
     double prevX;
     double prevY;

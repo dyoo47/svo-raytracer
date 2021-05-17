@@ -1,4 +1,5 @@
 import org.lwjgl.BufferUtils;
+
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.opengl.GL43C.*;
@@ -32,6 +33,7 @@ public class Main {
     if (window == NULL)
         throw new AssertionError("Failed to create the GLFW window");
     Input.setKeybinds(window);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     // Make context current and install debug message callback
     glfwMakeContextCurrent(window);
@@ -80,10 +82,10 @@ public class Main {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    VoxelData voxelData = new VoxelData(128, 128, 128);
-    voxelData.sample(0, 0, 0);
-    EfficientOctree eo = new EfficientOctree(10000, (byte)1, voxelData);
-    eo.constructOctree(voxelData, 6);
+    VoxelData voxelData = new VoxelData(256, 256, 256);
+    voxelData.sampleRidges(0, 0, 0);
+    EfficientOctree eo = new EfficientOctree(100000, (byte)1, voxelData);
+    eo.constructOctree(voxelData, 7);
     System.out.println(" done!");
 
     IntBuffer out = BufferUtils.createIntBuffer(1);
@@ -160,6 +162,16 @@ public class Main {
       double[] mouseDelta = input.getMouseDelta();
       cam.rotate(0.0f, (float)-mouseDelta[0] * Constants.CAMERA_SENSITIVITY, 0.0f);
       cam.rotate((float)-mouseDelta[1] * Constants.CAMERA_SENSITIVITY, 0.0f, 0.0f);
+
+      if(Input.keyDown(Input.SPEED_TURBO)){
+        cam.setSpeed(0.005f);
+      }else if(Input.keyDown(Input.SPEED_SLOW)){
+        cam.setSpeed(0.0001f);
+      }else{
+        cam.setSpeed(0.0005f);
+      }
+
+
       glUniform3fv(8, cam.pos);
       glUniform3fv(1, cam.l1);
       glUniform3fv(2, cam.l2);
