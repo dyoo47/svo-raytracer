@@ -82,13 +82,15 @@ public class Main {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    VoxelData voxelData = new VoxelData(256, 256, 256);
-    voxelData.sample(0, 0, 0);
+    VoxelData voxelData = new VoxelData(512, 512, 512);
+    voxelData.sampleRidges(0, -256, 0);
     EfficientOctree eo = new EfficientOctree(100000, voxelData);
-    eo.constructOctree(voxelData, 7);
+    //EfficientOctree eo = new EfficientOctree(100000, "level.svo");
+    eo.constructOctree(voxelData, 8);
+    //eo.writeBufferToFile("level.svo");
     System.out.println(" done!");
 
-    IntBuffer out = BufferUtils.createIntBuffer(1);
+    //IntBuffer out = BufferUtils.createIntBuffer(1);
 
     int ssbo = 0;
     ssbo = glGenBuffers();
@@ -108,7 +110,7 @@ public class Main {
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo);
-    glGetBufferParameteriv(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, out);
+    //glGetBufferParameteriv(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, out);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     while (!glfwWindowShouldClose(window)) {

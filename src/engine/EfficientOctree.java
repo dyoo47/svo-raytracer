@@ -1,4 +1,9 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+
 import org.lwjgl.BufferUtils;
 
 public class EfficientOctree {
@@ -25,6 +30,11 @@ public class EfficientOctree {
     buffer = ByteBuffer.allocate(bufferSize);
     mem = buffer.array();
     createNode((byte) 1);
+  }
+
+  public EfficientOctree(int memSizeKB, String svoFile){
+    bufferSize = memSizeKB * 1024;
+    readBufferFromFile(svoFile);
   }
   /*
   NODE STRUCTURE
@@ -127,10 +137,43 @@ public class EfficientOctree {
   }
   
   public ByteBuffer getByteBuffer(){
-    ByteBuffer out = BufferUtils.createByteBuffer(memOffset + 1024);
+    ByteBuffer out = BufferUtils.createByteBuffer(memOffset);
     for(int i=0; i < memOffset; i++){
       out.put(i, buffer.get(i));
     }
     return out;
+  }
+
+  public void writeBufferToFile(String fileName){
+    try{
+      File outfile = new File(fileName);
+      ByteBuffer buf = this.getByteBuffer();
+      FileOutputStream fs = new FileOutputStream(outfile, false);
+      //buf.flip();
+      fs.getChannel().write(buf);
+      fs.getChannel().close();
+      fs.close();
+    }catch(IOException e){
+      System.out.println("Error while writing buffer to " + fileName + ": " + e.getMessage());
+    }
+  }
+
+  public void readBufferFromFile(String fileName){
+    try{
+      File infile = new File(fileName);
+      ByteBuffer buf = ByteBuffer.allocate(bufferSize);
+      FileInputStream fs = new FileInputStream(infile);
+      int b;
+      this.memOffset = 0;
+      while((b=fs.read())!=-1){
+        memOffset++;
+        buf.put((byte)b);
+      }
+      this.buffer = buf;
+      this.mem = buf.array();
+      fs.close();
+    }catch(IOException e){
+      System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
+    }
   }
 }
