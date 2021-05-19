@@ -61,9 +61,9 @@ struct Material{
 };
 
 const Material materials[8] = {
-  {{0.0f, 1.0f, 1.0f}, {0.0f, 0.8f, 0.8f}, 0.3f},
+  {{0.8f, 0.8f, 0.0f}, {0.8f, 0.8f, 0.0f}, 0.3f},
   {{1.0f, 0.9f, 0.2f}, {0.0f, 0.0f, 0.0f}, 0.3f},
-  {{1.0f, 1.0f, 0.0f}, {0.5f, 0.5f, 0.0f}, 0.3f},
+  {{0.8f, 0.3f, 0.0f}, {0.4f, 0.15f, 0.0f}, 0.3f},
   {{1.0f, 0.7f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{1.0f, 0.6f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{1.0f, 0.5f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
@@ -423,12 +423,11 @@ void main(void) {
   vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
   int samples = SAMPLES;
   float invsamples = 1.0f / SAMPLES;
-  
   //for(int i = 0; i < SAMPLES; i++){
-    int i = 0;
+    int i = frameNumber;
     finalcolor += trace(camPos, normalize(dir), 
         px.x + rand(vec2(i, i)) + rand(vec2(i+1, i+1)), 
-        px.y + rand(vec2(i, i)) + rand(vec2(i+1, i+1))) * invsamples;
+        px.y + rand(vec2(i, i)) + rand(vec2(i+1, i+1)));
   //}
   vec3 tempColor = finalcolor;
 
@@ -436,5 +435,9 @@ void main(void) {
   //if(debugFlag) debugColor = vec3(0, 1, 0);
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   
+  if(frameNumber > 1){
+    vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
+    finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
+  }
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));
 }

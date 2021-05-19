@@ -150,6 +150,32 @@ public class VoxelData {
         }
     }
 
+    public void sampleTestScene(int x, int y, int z){
+        int sphereX = 256;
+        int sphereY = 256;
+        int sphereZ = 256;
+        int sphereRadius = 128;
+        
+        for(int i = 0; i < width; i++){
+            for(int j = 0; j < height; j++){
+                for(int k = 0; k < depth; k++){
+                    int sample = (int) Math.round(Math.sqrt(Math.pow(sphereX - (x + i), 2) + Math.pow(sphereY - (y + j), 2) + Math.pow(sphereZ - (z + k), 2)) - sphereRadius);
+                    if(sample < 0){
+                        fastSet(i, j, k, (byte) 2);
+                    }else{
+                        sample = (int) Math.round(((SimplexNoise.noise((i + x) / 50f, (k + z) / 50f) + 1) * 4) + ((SimplexNoise.noise((i + x) / 200f, (k + z) / 200f) + 1) * 32));
+                        if(j + y - 256 <= sample * 1.5){
+                            sample = (int) Math.round(Math.abs(SimplexNoise.noise((i + x) / 50f, (j + y) / 50f, (k + z) / 50f) * 3 % 2));
+                            fastSet(i, j, k, (byte) 1);
+                        }else{
+                            fastSet(i, j, k, (byte) 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public void sampleFull(int x, int y, int z){
         for(int i = 0; i < width; i++){
             for(int j = 0; j < height; j++){

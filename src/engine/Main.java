@@ -83,7 +83,7 @@ public class Main {
     //--INITIALIZE
     System.out.print("creating voxel data...");
     VoxelData voxelData = new VoxelData(512, 512, 512);
-    voxelData.sampleRidges(0, -256, 0);
+    voxelData.sampleTestScene(0, 0, 0);
     EfficientOctree eo = new EfficientOctree(100000, voxelData);
     //EfficientOctree eo = new EfficientOctree(100000, "level.svo");
     eo.constructOctree(voxelData, 8);
@@ -131,37 +131,48 @@ public class Main {
       //Update camera position
       if(Input.keyDown(Input.MOVE_FORWARD)){
         //cam.setPos(cam.pos[0], cam.pos[1], cam.pos[2] - cam.speed);
+        frameNumber = 0;
         cam.strafe(1, 0);
       }
       if(Input.keyDown(Input.MOVE_BACK)){
+        frameNumber = 0;
         cam.strafe(-1, 0);
       }
       if(Input.keyDown(Input.MOVE_LEFT)){
+        frameNumber = 0;
         cam.strafe(0, -1);
       }
       if(Input.keyDown(Input.MOVE_RIGHT)){
+        frameNumber = 0;
         cam.strafe(0, 1);
       }
       if(Input.keyDown(Input.MOVE_UP)){
+        frameNumber = 0;
         cam.setPos(cam.pos[0], cam.pos[1] + cam.speed, cam.pos[2]);
       }
       if(Input.keyDown(Input.MOVE_DOWN)){
+        frameNumber = 0;
         cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
       }
       if(Input.keyDown(Input.ROTATE_LEFT)){
+        frameNumber = 0;
         cam.rotate(0.0f, 0.01f, 0.0f);
       }
       if(Input.keyDown(Input.ROTATE_RIGHT)){
+        frameNumber = 0;
         cam.rotate(0.0f, -0.01f, 0.0f);
         //cam.rotateDir(0.0f, -0.01f);
       }
       if(Input.keyDown(Input.ROTATE_UP)){
+        frameNumber = 0;
         cam.rotate(0.01f, 0.0f, 0.0f);
       }
       if(Input.keyDown(Input.ROTATE_DOWN)){
+        frameNumber = 0;
         cam.rotate(-0.01f, 0.0f, 0.0f);
       }
       double[] mouseDelta = input.getMouseDelta();
+      if(mouseDelta[0] != 0 || mouseDelta[1] != 0) frameNumber = 0;
       cam.rotate(0.0f, (float)-mouseDelta[0] * Constants.CAMERA_SENSITIVITY, 0.0f);
       cam.rotate((float)-mouseDelta[1] * Constants.CAMERA_SENSITIVITY, 0.0f, 0.0f);
 
