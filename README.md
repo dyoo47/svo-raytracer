@@ -1,14 +1,7 @@
-## Getting Started
+## svo-raytracer
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+An implementation of "Efficient Sparse Voxel Octrees" in Java/LWJGL.
 
-## Folder Structure
+![bluegreen](https://user-images.githubusercontent.com/34610019/118948016-be657b80-b90c-11eb-9128-9fbd6fb22f8d.png)
+![svo](https://user-images.githubusercontent.com/34610019/118948027-c2919900-b90c-11eb-992f-d8f87df4d269.png)
 
-The workspace contains two folders by default, where:
-
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
-
-## Dependency Management
-
-The `JAVA DEPENDENCIES` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-pack/blob/master/release-notes/v0.9.0.md#work-with-jar-files-directly).
