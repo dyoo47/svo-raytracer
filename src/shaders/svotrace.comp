@@ -13,10 +13,7 @@ layout(std430, binding = 7) buffer shaderStorage{
 layout(location = 8) uniform vec3 camPos;
 layout(location = 9) uniform int bufferEnd;
 int endOffset = bufferEnd / 4 + 1;
-struct box {
-  vec3 min, max, color, emi;
-  //float3 emi, color;
-};
+
 struct sphere{
     float radius;
     vec3 pos, color, emi;
@@ -33,7 +30,6 @@ uint wang_hash(uint seed)
     seed = seed ^ (seed >> 15);
     return seed;
 }
-#define NUM_BOXES 7
 #define EPSILON 3.552713678800501e-15f
 #define PI 3.14159265359f
 #define SAMPLES 1
@@ -42,6 +38,7 @@ uint wang_hash(uint seed)
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define MAX_DEPTH 9
 #define MAX_RAYCAST_ITERATIONS 1000
+#define RENDER_SCALE 2
 
 struct hitinfo {
   float near;
@@ -123,26 +120,7 @@ struct retInfo{
   vec3 normal;
 };
 
-retInfo intersectBox(vec3 origin, vec3 invdir, box b) {
-  vec3 tMin = (b.min - origin) * invdir;
-  vec3 tMax = (b.max - origin) * invdir;
-  vec3 t1 = min(tMin, tMax);
-  vec3 t2 = max(tMin, tMax);
-  float tNear = max(max(t1.x, t1.y), t1.z);
-  float tFar = min(min(t2.x, t2.y), t2.z);
-  vec3 hitpoint = origin + (1.0f / invdir) * tNear;
-  //vec3 p = (b.min - b.max) / 2.0f;
-  vec3 c = (b.min + b.max) * 0.5f;
-  vec3 p = (hitpoint - c);
-  vec3 d = vec3(abs(b.min.x - b.max.x), abs(b.min.y - b.max.y), abs(b.min.z - b.max.z)) / 2.0f;
-  float bias = 1.00001;
-  
-  vec3 normal = vec3(int(p.x / abs(d.x) * bias), 
-                      int(p.y / abs(d.y) * bias), 
-                      int(p.z / abs(d.z) * bias));
-      
-  return retInfo(vec2(tNear, tFar), normal);
-}
+
   /*
   NODE STRUCTURE
   branch
@@ -424,16 +402,22 @@ void main(void) {
   int samples = SAMPLES;
   float invsamples = 1.0f / SAMPLES;
   //for(int i = 0; i < SAMPLES; i++){
+  //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
     int i = frameNumber;
     finalcolor += trace(camPos, normalize(dir), 
         px.x + rand(vec2(i, i)) + rand(vec2(i+1, i+1)), 
         px.y + rand(vec2(i, i)) + rand(vec2(i+1, i+1)));
   //}
+  // }else{
+  //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
+  //   finalcolor = imageLoad(framebufferImage, grab).xyz;
+  // }
   vec3 tempColor = finalcolor;
 
   //Node debugNode = extractNode(407);
   //if(debugFlag) debugColor = vec3(0, 1, 0);
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
+  //if(px.x % 8 == 0 && px.y % 8 == 0) finalcolor = debugColor;
   
   if(frameNumber > 1){
     vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
