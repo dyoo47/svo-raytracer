@@ -82,11 +82,11 @@ public class Main {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    VoxelData voxelData = new VoxelData(512, 512, 512);
-    voxelData.sample2D(0, -256, 0);
-    EfficientOctree eo = new EfficientOctree(100000, voxelData);
+    VoxelData voxelData = new VoxelData(1024, 1024, 1024);
+    voxelData.sample2D(0, -512, 0);
+    EfficientOctree eo = new EfficientOctree(1000000, voxelData);
     //EfficientOctree eo = new EfficientOctree(100000, "level.svo");
-    eo.constructOctree(voxelData, 8);
+    eo.constructOctree(voxelData, 9);
     //eo.writeBufferToFile("level.svo");
     System.out.println(" done!");
 

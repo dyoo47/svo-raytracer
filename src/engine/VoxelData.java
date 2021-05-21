@@ -4,6 +4,7 @@ public class VoxelData {
     private final int width;
     private final int height;
     private final int depth;
+    private final float scale = 0.25f;
 
     public VoxelData(int width, int height, int depth){
         data = new byte[width * height * depth];
@@ -101,10 +102,10 @@ public class VoxelData {
         for(int i = 0; i < width; i++){
             for(int j = 0; j < height; j++){
                 for(int k = 0; k < depth; k++){
-                    int sample = (int) Math.round(((SimplexNoise.noise((i + x) / 50f, (k + z) / 50f) + 1) * 4) + ((SimplexNoise.noise((i + x) / 200f, (k + z) / 200f) + 1) * 32));
-                    if(j + y <= sample * 1.5){
+                    int sample = (int) Math.round(((SimplexNoise.noise(((i + x)*scale) / 50f, ((k + z)*scale) / 50f) + 1) * 4) + ((SimplexNoise.noise(((i + x)*scale) / 200f, ((k + z)*scale) / 200f) + 1) * 32));
+                    if(j + y <= sample){
                         //sample = (int) Math.round(SimplexNoise.noise((i + x) / 50f, (j + y) / 50f, (k + z) / 50f));
-                        sample = (int) Math.round(Math.abs(SimplexNoise.noise((i + x) / 50f, (j + y) / 50f, (k + z) / 50f) * 3 % 2));
+                        sample = (int) Math.round(Math.abs(SimplexNoise.noise((i + x)*scale / 50f, (j + y)*scale / 50f, (k + z)*scale / 50f) * 3 % 2));
                         fastSet(i, j, k, (byte) sample);
                     }else{
                         fastSet(i, j, k, (byte) 0);
