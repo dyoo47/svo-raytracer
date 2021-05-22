@@ -82,12 +82,15 @@ public class Main {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    VoxelData voxelData = new VoxelData(1024, 1024, 1024);
-    voxelData.sample2D(0, -512, 0);
-    EfficientOctree eo = new EfficientOctree(1000000, voxelData);
-    //EfficientOctree eo = new EfficientOctree(100000, "level.svo");
-    eo.constructOctree(voxelData, 9);
-    //eo.writeBufferToFile("level.svo");
+    World world = new World(9, 1024);
+    double startTime = System.currentTimeMillis();
+    world.generateVoxelData();
+    double endTime = System.currentTimeMillis();
+    System.out.println("generated voxel data in " + (endTime - startTime)/1000.0 + "s.");
+    startTime = System.currentTimeMillis();
+    world.generateOctreeData();
+    endTime = System.currentTimeMillis();
+    System.out.println("generated octree data in " + (endTime - startTime)/1000.0 + "s.");
     System.out.println(" done!");
 
     //IntBuffer out = BufferUtils.createIntBuffer(1);
@@ -99,8 +102,8 @@ public class Main {
     glShaderStorageBlockBinding(computeProgram, blockIndex, bindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
-    ByteBuffer buffer = eo.getByteBuffer();
-    System.out.println("mem offset: " + eo.memOffset);
+    ByteBuffer buffer = world.octreeBuffer;
+    System.out.println("mem offset: " + world.eo.memOffset);
 
     
     Camera cam = new Camera();
@@ -126,7 +129,7 @@ public class Main {
       //Update frame
       frameNumber++;
       glUniform1i(5, frameNumber);
-      glUniform1i(9, eo.memOffset);
+      glUniform1i(9, world.eo.memOffset);
       //Write octree buffer size to uniform
       //glUniform1i(6, octree.memOffset);
 

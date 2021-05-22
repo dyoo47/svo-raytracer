@@ -11,6 +11,7 @@ public class EfficientOctree {
   ByteBuffer buffer;
   int memOffset = 0;
   int bufferSize = 0;
+  VoxelData voxelData;
 
   static final int NODE_SIZE = 6;
   static final int LEAF_SIZE = 1;
@@ -30,6 +31,7 @@ public class EfficientOctree {
     buffer = ByteBuffer.allocate(bufferSize);
     mem = buffer.array();
     createNode((byte) 1);
+    this.voxelData = voxelData;
   }
 
   public EfficientOctree(int memSizeKB, String svoFile){
@@ -75,18 +77,18 @@ public class EfficientOctree {
     buffer.put(parentNode + 5, leafMask);
   }
 
-  public void constructOctree(VoxelData data, int maxLOD){
+  public void constructOctree(int maxLOD){
     int maxSize = 1 << maxLOD;
     createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
     int[] rootPos = {0, 0, 0};
-    constructOctree(data, maxSize, 0, rootPos, 0);
+    constructOctree(maxSize, 0, rootPos, 0);
   }
 
   public byte getValue(int parentNode){
     return mem[parentNode];
   }
 
-  private void constructOctree(VoxelData data, int maxSize, int curLOD, int[] pPos, int parentPointer){
+  private void constructOctree(int maxSize, int curLOD, int[] pPos, int parentPointer){
 
     int cSize = maxSize >> curLOD;
     if(cSize == 0) return;
@@ -102,13 +104,13 @@ public class EfficientOctree {
 
     for(int n = 0; n < 8; n++){
       
-      byte first = data.get(cPos[n][0], cPos[n][1], cPos[n][2]);
+      byte first = voxelData.get(cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
       boolean leaf = true;
       for(int i = cPos[n][0]; i < cPos[n][0] + cSize; i++){
         for(int j = cPos[n][1]; j < cPos[n][1] + cSize; j++){
           for(int k = cPos[n][2]; k < cPos[n][2] + cSize; k++){
-            byte sample = data.get(i, j, k);
+            byte sample = voxelData.get(i, j, k);
             if(sample != 0){
               value = sample;
             }
@@ -131,7 +133,7 @@ public class EfficientOctree {
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
       if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
-        constructOctree(data, maxSize, curLOD + 1, cPos[n], children[n]);
+        constructOctree(maxSize, curLOD + 1, cPos[n], children[n]);
       }
     }
   }

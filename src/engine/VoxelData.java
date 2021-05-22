@@ -1,10 +1,10 @@
 public class VoxelData {
 
     byte[] data;
-    private final int width;
-    private final int height;
-    private final int depth;
-    private final float scale = 0.25f;
+    public final int width;
+    public final int height;
+    public final int depth;
+    private final float scale = 0.125f;
 
     public VoxelData(int width, int height, int depth){
         data = new byte[width * height * depth];
@@ -42,7 +42,7 @@ public class VoxelData {
         for(int i = 0; i < width; i++){
             for(int j = 0; j < height; j++){
                 for(int k = 0; k < depth; k++){
-                    int sample = (int) Math.round(SimplexNoise.noise((i + x) / 50f, (j + y) / 50f, (k + z) / 50f));
+                    int sample = (int) Math.round(SimplexNoise.noise((i + x)*scale / 50f, (j + y)*scale / 50f, (k + z)*scale / 50f));
                     if(sample > 0){
                         fastSet(i, j, k, (byte) 1);
                     }else{
