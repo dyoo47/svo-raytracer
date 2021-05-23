@@ -36,7 +36,7 @@ uint wang_hash(uint seed)
 #define NODE_SIZE 6
 #define LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
-#define MAX_DEPTH 10
+#define MAX_DEPTH 11
 #define MAX_RAYCAST_ITERATIONS 1000
 #define RENDER_SCALE 2
 
@@ -59,7 +59,7 @@ struct Material{
 
 const Material materials[8] = {
   {{0.8f, 0.8f, 0.0f}, {0.8f, 0.8f, 0.0f}, 0.3f},
-  {{1.0f, 0.9f, 0.2f}, {0.0f, 0.0f, 0.0f}, 0.3f},
+  {{1.0f, 0.9f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{0.8f, 0.3f, 0.0f}, {0.4f, 0.15f, 0.0f}, 0.3f},
   {{1.0f, 0.7f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
   {{1.0f, 0.6f, 0.2f}, {0.2f, 0.2f, 0.2f}, 0.3f},
@@ -205,6 +205,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   if(1.5f * tz_coef - tz_bias > t_min) idx ^= 4u, pos.z = 1.5f;
   //res.hit = true;
   int val = 0;
+  uint child_shift = 0;
 
   while(scale < MAX_SCALE){
     iter++;
@@ -219,7 +220,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     float tz_corner = pos.z * tz_coef - tz_bias;
     float tc_max = min(min(tx_corner, ty_corner), tz_corner);
 
-    uint child_shift = idx ^ octant_mask;
+    child_shift = idx ^ octant_mask;
 
     // if(endOffset < (bufferEnd/4) + 250){
     //   octreeBuffer[endOffset++] = child_descriptor;
@@ -327,7 +328,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   //if((octant_mask & 4u) == 0u) norm.z = -norm.z;
 
   res.t = t_min;
-  res.value = extractNode(child_descriptor).value;
+  res.value = extractChild(child_descriptor, child_shift, parent.leafMask).value;
   res.normal = norm;
   res.scale = scale;
   //res.hitPos = hitpos;
@@ -341,54 +342,54 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
 vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
   castResult res;
-  //res.t = 2.0f;
-  // vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
-  // vec3 mask = vec3(1.0f, 1.0f, 1.0f);
+  res.t = 2.0f;
+  vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
+  vec3 mask = vec3(1.0f, 1.0f, 1.0f);
 
-  // for(int i=0; i < 2; i++){
-  //   if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)) break;
-  //   vec3 hitpoint = origin + dir * res.t;
-  //   vec3 normal = res.normal;
-  //   if(dot(normal, dir) > 0){
-  //     normal = -normal;
-  //   }
-  //   vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
+  for(int i=0; i < 2; i++){
+    if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)) break;
+    vec3 hitpoint = origin + dir * res.t;
+    vec3 normal = res.normal;
+    if(dot(normal, dir) > 0){
+      normal = -normal;
+    }
+    vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
 
-  //   float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
-  //   float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
-  //   //float rand1 = 2.0f * PI;
-  //   //float rand2 = 1.0f;
-  //   //float rand2s = sqrt(rand2);
+    float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
+    float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
+    //float rand1 = 2.0f * PI;
+    //float rand2 = 1.0f;
+    //float rand2s = sqrt(rand2);
     
-  //   vec3 w = normal_facing;
-  //   vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
-  //   vec3 u = normalize(cross(axis, w));
-  //   vec3 v = cross(w, u);
-  //   vec3 newdir = normalize(u*cos(rand1)*rand2 + v*sin(rand1)*rand2 + w*sqrt(1.0f - rand2));
+    vec3 w = normal_facing;
+    vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 u = normalize(cross(axis, w));
+    vec3 v = cross(w, u);
+    vec3 newdir = normalize(u*cos(rand1)*rand2 + v*sin(rand1)*rand2 + w*sqrt(1.0f - rand2));
 
-  //   origin = hitpoint;
-  //   dir = newdir;
+    origin = hitpoint;
+    dir = newdir;
 
-  //   Material mat;
-  //   if(res.value == 1){
-  //     mat = materials[1];
-  //   }else if(res.value == 0){
-  //     mat = materials[0];
-  //   }else{
-  //     mat = materials[2];
-  //   }
-  //   accum_color += mask * mat.emission;
-  //   mask *= mat.color;
-  //   mask *= dot(newdir, normal_facing);
-  // }
-  // return accum_color;
-  if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)){
-    return res.debugColor;
-    //return materials[res.node.value].color;
-  }else{
-    return res.debugColor;
-    //return vec3(0);
+    Material mat;
+    if(res.value == 1){
+      mat = materials[1];
+    }else if(res.value == 0){
+      mat = materials[0];
+    }else{
+      mat = materials[2];
+    }
+    accum_color += mask * mat.emission;
+    mask *= mat.color;
+    mask *= dot(newdir, normal_facing);
   }
+  return accum_color;
+  // if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)){
+  //   return res.debugColor;
+  //   //return materials[res.node.value].color;
+  // }else{
+  //   return res.debugColor;
+  //   //return vec3(0);
+  // }
 }
 
 layout(local_size_x = 8, local_size_y = 8) in;

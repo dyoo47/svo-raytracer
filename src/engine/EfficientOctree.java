@@ -103,7 +103,6 @@ public class EfficientOctree {
     }
 
     for(int n = 0; n < 8; n++){
-      
       byte first = voxelData.get(cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
       boolean leaf = true;
