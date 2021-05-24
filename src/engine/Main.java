@@ -1,12 +1,9 @@
-import org.lwjgl.BufferUtils;
-
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.opengl.GL43C.*;
 import static org.lwjgl.opengl.GLUtil.setupDebugMessageCallback;
 import static org.lwjgl.system.MemoryUtil.*;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 
 public class Main {
 
@@ -83,14 +80,6 @@ public class Main {
     //--INITIALIZE
     System.out.print("creating voxel data...");
     World world = new World(9, 1024);
-    double startTime = System.currentTimeMillis();
-    world.generateVoxelData();
-    double endTime = System.currentTimeMillis();
-    System.out.println("generated voxel data in " + (endTime - startTime)/1000.0 + "s.");
-    startTime = System.currentTimeMillis();
-    world.generateOctreeData();
-    endTime = System.currentTimeMillis();
-    System.out.println("generated octree data in " + (endTime - startTime)/1000.0 + "s.");
     System.out.println(" done!");
 
     //IntBuffer out = BufferUtils.createIntBuffer(1);

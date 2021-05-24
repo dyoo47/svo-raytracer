@@ -1,13 +1,14 @@
 public class VoxelData {
 
-    byte[] data;
+    byte[][][] data;
     public final int width;
     public final int height;
     public final int depth;
     private final float scale = 0.125f;
 
     public VoxelData(int width, int height, int depth){
-        data = new byte[width * height * depth];
+        //data = new byte[width * height * depth];
+        data = new byte[width][height][depth];
         this.width = width;
         this.height = height;
         this.depth = depth;
@@ -20,11 +21,18 @@ public class VoxelData {
         }
     }
 
+    // public byte get(int x, int y, int z){
+    //     if(x < 0 || x >= width) return 0;
+    //     if(y < 0 || y >= height) return 0;
+    //     if(z < 0 || z >= depth) return 0;
+    //     return data[x + z * width + y * (width * height)];
+    // }
+
     public byte get(int x, int y, int z){
         if(x < 0 || x >= width) return 0;
         if(y < 0 || y >= height) return 0;
         if(z < 0 || z >= depth) return 0;
-        return data[x + z * width + y * (width * height)];
+        return data[x][y][z];
     }
 
     public void set (int x, int y, int z, byte voxel) {
@@ -34,8 +42,12 @@ public class VoxelData {
         fastSet(x, y, z, voxel);
     }
 
+    // public void fastSet(int x, int y, int z, byte voxel){
+    //     data[x + z * width + y * (width * height)] = voxel;
+    // }
+
     public void fastSet(int x, int y, int z, byte voxel){
-        data[x + z * width + y * (width * height)] = voxel;
+        data[x][y][z] = voxel;
     }
 
     public void sample(int x, int y, int z){

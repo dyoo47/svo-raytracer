@@ -346,50 +346,50 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
 
-  for(int i=0; i < 2; i++){
-    if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)) break;
-    vec3 hitpoint = origin + dir * res.t;
-    vec3 normal = res.normal;
-    if(dot(normal, dir) > 0){
-      normal = -normal;
-    }
-    vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
+  // for(int i=0; i < 2; i++){
+  //   if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)) break;
+  //   vec3 hitpoint = origin + dir * res.t;
+  //   vec3 normal = res.normal;
+  //   if(dot(normal, dir) > 0){
+  //     normal = -normal;
+  //   }
+  //   vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * (-1.0f);
 
-    float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
-    float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
-    //float rand1 = 2.0f * PI;
-    //float rand2 = 1.0f;
-    //float rand2s = sqrt(rand2);
+  //   float rand1 = 2.0f * PI * rand(vec2(seed0, seed1));
+  //   float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
+  //   //float rand1 = 2.0f * PI;
+  //   //float rand2 = 1.0f;
+  //   //float rand2s = sqrt(rand2);
     
-    vec3 w = normal_facing;
-    vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
-    vec3 u = normalize(cross(axis, w));
-    vec3 v = cross(w, u);
-    vec3 newdir = normalize(u*cos(rand1)*rand2 + v*sin(rand1)*rand2 + w*sqrt(1.0f - rand2));
+  //   vec3 w = normal_facing;
+  //   vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+  //   vec3 u = normalize(cross(axis, w));
+  //   vec3 v = cross(w, u);
+  //   vec3 newdir = normalize(u*cos(rand1)*rand2 + v*sin(rand1)*rand2 + w*sqrt(1.0f - rand2));
 
-    origin = hitpoint;
-    dir = newdir;
+  //   origin = hitpoint;
+  //   dir = newdir;
 
-    Material mat;
-    if(res.value == 1){
-      mat = materials[1];
-    }else if(res.value == 0){
-      mat = materials[0];
-    }else{
-      mat = materials[2];
-    }
-    accum_color += mask * mat.emission;
-    mask *= mat.color;
-    mask *= dot(newdir, normal_facing);
-  }
-  return accum_color;
-  // if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)){
-  //   return res.debugColor;
-  //   //return materials[res.node.value].color;
-  // }else{
-  //   return res.debugColor;
-  //   //return vec3(0);
+  //   Material mat;
+  //   if(res.value == 1){
+  //     mat = materials[1];
+  //   }else if(res.value == 0){
+  //     mat = materials[0];
+  //   }else{
+  //     mat = materials[2];
+  //   }
+  //   accum_color += mask * mat.emission;
+  //   mask *= mat.color;
+  //   mask *= dot(newdir, normal_facing);
   // }
+  // return accum_color;
+  if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)){
+    return res.debugColor;
+    //return materials[res.node.value].color;
+  }else{
+    return res.debugColor;
+    //return vec3(0);
+  }
 }
 
 layout(local_size_x = 8, local_size_y = 8) in;

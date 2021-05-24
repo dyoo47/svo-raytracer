@@ -11,7 +11,9 @@ public class EfficientOctree {
   ByteBuffer buffer;
   int memOffset = 0;
   int bufferSize = 0;
-  VoxelData voxelData;
+  WorldGenThread[] threads;
+  int[] origin;
+  int size;
 
   static final int NODE_SIZE = 6;
   static final int LEAF_SIZE = 1;
@@ -26,18 +28,26 @@ public class EfficientOctree {
     {1, 1, 1}
   };
 
-  public EfficientOctree(int memSizeKB, VoxelData voxelData){
+  public EfficientOctree(int memSizeKB, int size, int[] origin){
+    this.size = size;
+    this.origin = origin;
     bufferSize = memSizeKB * 1024;
     buffer = ByteBuffer.allocate(bufferSize);
     mem = buffer.array();
+    //origin = new int[]{0, -512, 0};
     createNode((byte) 1);
-    this.voxelData = voxelData;
+    threads = new WorldGenThread[8];
+    // for(int i=0; i < 8; i++){
+    //   threads[i] = new WorldGenThread("wg-" + i, null, Constants.childOffsets[i], origin);
+    // }
+    //this.voxelData = voxelData;
   }
 
   public EfficientOctree(int memSizeKB, String svoFile){
     bufferSize = memSizeKB * 1024;
     readBufferFromFile(svoFile);
   }
+
   /*
   NODE STRUCTURE
   branch
@@ -77,30 +87,85 @@ public class EfficientOctree {
     buffer.put(parentNode + 5, leafMask);
   }
 
-  public void constructOctree(int maxLOD){
+  public void constructOctree(int maxLOD, int rootPointer){
     int maxSize = 1 << maxLOD;
-    createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
+    //createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
     int[] rootPos = {0, 0, 0};
-    constructOctree(maxSize, 0, rootPos, 0);
+    // VoxelData vData = new VoxelData(1024, 1024, 1024);
+    // for(WorldGenThread t : threads){
+    //   t.vd = vData;
+    //   t.start();
+    // }
+    // int i = 0;
+    // while(i < 8){
+    //   i = 0;
+    //   for(WorldGenThread t : threads){
+    //     if(!t.thread.isAlive()) i++;
+    //   }
+    // }
+    constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
+    //vData = null;
   }
 
   public byte getValue(int parentNode){
     return mem[parentNode];
   }
 
-  private void constructOctree(int maxSize, int curLOD, int[] pPos, int parentPointer){
+  private void constructOctree(int maxSize, int curLOD, int[] pPos, int parentPointer, VoxelData voxelData, boolean split){
 
     int cSize = maxSize >> curLOD;
     if(cSize == 0) return;
 
-    byte leafMask = 0;
-    int[][] cPos = new int[8][3];
     int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
+    int[][] cPos = new int[8][3];
     for(int n = 0; n < 8; n++){
       cPos[n][0] = pPos[0] + childOffsets[n][0] * cSize;
       cPos[n][1] = pPos[1] + childOffsets[n][1] * cSize;
       cPos[n][2] = pPos[2] + childOffsets[n][2] * cSize;
     }
+    if(voxelData == null){
+
+      if(curLOD == 1 && !split){
+        int[] newOrigin = {
+          origin[0] + pPos[0]*2,
+          origin[1] + pPos[1]*2,
+          origin[2] + pPos[2]*2
+        };
+        pPos[0] = 0;
+        pPos[1] = 0;
+        pPos[2] = 0;
+        voxelData = new VoxelData(1024, 1024, 1024);
+        
+        for(int i=0; i < 8; i++){
+          threads[i] = new WorldGenThread("inner wg", voxelData, Constants.childOffsets[i], newOrigin);
+          threads[i].start();
+        }
+        int i = 0;
+        while(i < 8){
+          i = 0;
+          for(WorldGenThread t : threads){
+            if(!t.thread.isAlive()) i++;
+          }
+        }
+        constructOctree(maxSize, 0, pPos, parentPointer, voxelData, true);
+        return;
+      }else{
+        for(int i = 0; i < 8; i++){
+          children[i] = createNode((byte) 1);
+        }
+        setChildPointer(parentPointer, children[0]);
+        for(int i = 0; i < 8; i++){
+          constructOctree(maxSize, curLOD + 1, cPos[i], children[i], voxelData, split);
+        }
+        return;
+      }
+    }
+
+    //if(curLOD == 1) System.out.println("HI");
+    
+
+    byte leafMask = 0;
+    
 
     for(int n = 0; n < 8; n++){
       byte first = voxelData.get(cPos[n][0], cPos[n][1], cPos[n][2]);
@@ -132,7 +197,7 @@ public class EfficientOctree {
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
       if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
-        constructOctree(maxSize, curLOD + 1, cPos[n], children[n]);
+        constructOctree(maxSize, curLOD + 1, cPos[n], children[n], voxelData, split);
       }
     }
   }

@@ -7,41 +7,25 @@ public class World {
   int[] origin;
   public ByteBuffer octreeBuffer;
   ByteBuffer chunkBuffer;
-  public VoxelData voxelData;
-  WorldGenThread[] threads;
   EfficientOctree eo;
 
-  public World(int maxLOD, int size){
+  public World(int maxLOD, int chunkSize){
+    origin = new int[]{0, -512, 0};
     System.out.println("Initializing world...");
     this.maxLOD = maxLOD;
-    this.size = size;
-    voxelData = new VoxelData(size, size, size);
-    threads = new WorldGenThread[8];
-    this.origin = new int[]{0, -512, 0};
-    for(int i=0; i < 8; i++){
-      threads[i] = new WorldGenThread("wg-" + i, voxelData, Constants.childOffsets[i], origin);
-    }
+    this.size = chunkSize;
+    double startTime = System.currentTimeMillis();
+    generateOctreeData();
+    double endTime = System.currentTimeMillis();
+    System.out.println("Octree data generated in " + (endTime-startTime)/1000 + "s.");
     System.out.println("Initialization complete!");
   }
 
-  public void generateVoxelData(){
-    System.out.println("Starting worldgen threads...");
-    for(WorldGenThread t : threads){
-      t.start();
-    }
-    int i = 0;
-    while(i < 8){
-      i = 0;
-      for(WorldGenThread t : threads){
-        if(!t.thread.isAlive()) i++;
-      }
-    }
-    System.out.println("Voxel data generation complete!");
-  }
-
-  public void generateOctreeData(){
-    eo = new EfficientOctree(1000000, voxelData);
-    eo.constructOctree(maxLOD);
+  private void generateOctreeData(){
+    //eo = new EfficientOctree(30000, size, origin);
+    eo = new EfficientOctree(100000, size, origin);
+    eo.constructOctree(maxLOD, 0);
+    //eo.constructOmegaTree();
     octreeBuffer = eo.getByteBuffer();
   }
 
