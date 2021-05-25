@@ -309,7 +309,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     //t_min = 2.0f;
     //res.hit = false;
     //res.debugColor = vec3(0, 0, 0);
-    res.debugColor = vec3(0.005) * iter;
+    res.debugColor = vec3(0.01) * iter;
     return false;
   }
 
@@ -333,7 +333,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   res.scale = scale;
   //res.hitPos = hitpos;
   //res.hit = true;
-  res.debugColor = vec3(0.005) * iter;
+  res.debugColor = vec3(0.01) * iter;
   //res.debugColor = vec3(0.01 * iter, 1 - 0.01 * scale, 0.0);
 
   return scale < MAX_SCALE && t_min <= t_max;

@@ -29,15 +29,15 @@ public class WorldGenThread implements Runnable {
         for(int i=(vd.width * offset[0])/2; i < xlim; i++){
             for(int j=(vd.height * offset[1])/2; j < ylim; j++){
                 for(int k=(vd.depth * offset[2])/2; k < zlim; k++){
-                    // if(NoiseSampler.sample(origin[0] + i, origin[1] + j, origin[2] + k) > 0)
-                    //     vd.fastSet(i, j, k, (byte) 1);
-                    // else 
-                    //     vd.fastSet(i, j, k, (byte) 0);
-                    int sample = NoiseSampler.sample(origin[0] + i, origin[2] + k);
-                    if(j + origin[1] < sample)
+                    if(NoiseSampler.sample(origin[0] + i, origin[1] + j, origin[2] + k) > 0)
                         vd.fastSet(i, j, k, (byte) 1);
-                    else
+                    else 
                         vd.fastSet(i, j, k, (byte) 0);
+                    // int sample = NoiseSampler.sample(origin[0] + i, origin[2] + k);
+                    // if(j + origin[1] < sample)
+                    //     vd.fastSet(i, j, k, (byte) 1);
+                    // else
+                    //     vd.fastSet(i, j, k, (byte) 0);
                 }
             }
         }

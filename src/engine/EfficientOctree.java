@@ -14,6 +14,7 @@ public class EfficientOctree {
   WorldGenThread[] threads;
   int[] origin;
   int size;
+  int splitLOD;
 
   static final int NODE_SIZE = 6;
   static final int LEAF_SIZE = 1;
@@ -89,21 +90,29 @@ public class EfficientOctree {
 
   public void constructOctree(int maxLOD, int rootPointer){
     int maxSize = 1 << maxLOD;
-    //createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
     int[] rootPos = {0, 0, 0};
-    // VoxelData vData = new VoxelData(1024, 1024, 1024);
-    // for(WorldGenThread t : threads){
-    //   t.vd = vData;
-    //   t.start();
-    // }
-    // int i = 0;
-    // while(i < 8){
-    //   i = 0;
-    //   for(WorldGenThread t : threads){
-    //     if(!t.thread.isAlive()) i++;
-    //   }
-    // }
-    constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
+    System.out.println("MAXSIZE: " + maxSize);
+    createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
+    if(maxLOD <= 9){
+      VoxelData vData = new VoxelData(1024, 1024, 1024);
+      for(int i=0; i < 8; i++){
+        threads[i] = new WorldGenThread("wg-" + i, vData, Constants.childOffsets[i] , origin);
+        threads[i].start();
+      }
+      int i = 0;
+      while(i < 8){
+        i = 0;
+        for(WorldGenThread t : threads){
+          if(!t.thread.isAlive()) i++;
+        }
+      }
+      constructOctree(maxSize, 0, rootPos, rootPointer, vData, false);
+    }else{
+      splitLOD = maxLOD - 9;
+      maxSize = 512;
+      constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
+    }
+    //constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
     //vData = null;
   }
 
@@ -125,7 +134,7 @@ public class EfficientOctree {
     }
     if(voxelData == null){
 
-      if(curLOD == 1 && !split){
+      if(curLOD == splitLOD && !split){
         int[] newOrigin = {
           origin[0] + pPos[0]*2,
           origin[1] + pPos[1]*2,
@@ -160,13 +169,7 @@ public class EfficientOctree {
         return;
       }
     }
-
-    //if(curLOD == 1) System.out.println("HI");
-    
-
     byte leafMask = 0;
-    
-
     for(int n = 0; n < 8; n++){
       byte first = voxelData.get(cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
@@ -203,8 +206,9 @@ public class EfficientOctree {
   }
   
   public ByteBuffer getByteBuffer(){
-    ByteBuffer out = BufferUtils.createByteBuffer(memOffset);
-    for(int i=0; i < memOffset; i++){
+    int limit = memOffset;
+    ByteBuffer out = BufferUtils.createByteBuffer(limit);
+    for(int i=0; i < limit; i++){
       out.put(i, buffer.get(i));
     }
     return out;

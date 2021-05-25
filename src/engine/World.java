@@ -22,10 +22,11 @@ public class World {
   }
 
   private void generateOctreeData(){
-    //eo = new EfficientOctree(30000, size, origin);
     eo = new EfficientOctree(100000, size, origin);
-    eo.constructOctree(maxLOD, 0);
-    //eo.constructOmegaTree();
+    //eo.constructOctree(maxLOD, 0);
+    OctreeThread ot = new OctreeThread("ot", eo, maxLOD);
+    System.out.println("started octree thread");
+    ot.start();
     octreeBuffer = eo.getByteBuffer();
   }
 

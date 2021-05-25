@@ -35,7 +35,7 @@ public class Main {
     // Make context current and install debug message callback
     glfwMakeContextCurrent(window);
     createCapabilities();
-    setupDebugMessageCallback();
+    //setupDebugMessageCallback();
 
     // Create VAO
     glBindVertexArray(glGenVertexArrays());
@@ -83,6 +83,10 @@ public class Main {
     System.out.println(" done!");
 
     //IntBuffer out = BufferUtils.createIntBuffer(1);
+    Camera cam = new Camera();
+    cam.setPos(1.5f, 1.5f, 2.0f);
+    Input input = new Input(window);
+    
 
     int ssbo = 0;
     ssbo = glGenBuffers();
@@ -93,20 +97,15 @@ public class Main {
 
     ByteBuffer buffer = world.octreeBuffer;
     System.out.println("mem offset: " + world.eo.memOffset);
-
-    
-    Camera cam = new Camera();
-    cam.setPos(1.5f, 1.5f, 2.0f);
-    Input input = new Input(window);
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo);
     //glGetBufferParameteriv(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, out);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     //glfwMaximizeWindow(window);
-
+    int lastOffset = 0;
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
 
@@ -119,6 +118,13 @@ public class Main {
       frameNumber++;
       glUniform1i(5, frameNumber);
       glUniform1i(9, world.eo.memOffset);
+      //System.out.println("mem offset: " + world.eo.memOffset);
+      if(lastOffset != world.eo.memOffset){
+        lastOffset = world.eo.memOffset;
+        buffer = world.eo.getByteBuffer();
+        glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
+        buffer = null;
+      }
       //Write octree buffer size to uniform
       //glUniform1i(6, octree.memOffset);
 
