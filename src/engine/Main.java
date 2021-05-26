@@ -105,6 +105,7 @@ public class Main {
     //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     //glfwMaximizeWindow(window);
+    int renderMode = 0;
     int lastOffset = 0;
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -117,9 +118,11 @@ public class Main {
       //Update frame
       frameNumber++;
       glUniform1i(5, frameNumber);
+      glUniform1i(6, renderMode);
       glUniform1i(9, world.eo.memOffset);
       //System.out.println("mem offset: " + world.eo.memOffset);
       if(lastOffset != world.eo.memOffset){
+        frameNumber = 0;
         lastOffset = world.eo.memOffset;
         buffer = world.eo.getByteBuffer();
         glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
@@ -153,6 +156,14 @@ public class Main {
       if(Input.keyDown(Input.MOVE_DOWN)){
         frameNumber = 0;
         cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
+      }
+      if(Input.keyDown(Input.RENDER_MODE_ZERO)){
+        renderMode = 0;
+        frameNumber = 0;
+      }
+      if(Input.keyDown(Input.RENDER_MODE_ONE)){
+        renderMode = 1;
+        frameNumber = 0;
       }
       if(Input.keyDown(Input.ROTATE_LEFT)){
         frameNumber = 0;

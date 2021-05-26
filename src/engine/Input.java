@@ -18,6 +18,8 @@ public class Input {
     public static final int ROTATE_UP = GLFW_KEY_UP;
     public static final int SPEED_TURBO = GLFW_KEY_LEFT_SHIFT;
     public static final int SPEED_SLOW = GLFW_KEY_LEFT_CONTROL;
+    public static final int RENDER_MODE_ZERO = GLFW_KEY_2;
+    public static final int RENDER_MODE_ONE = GLFW_KEY_1;
     
     long window;
     double prevX;

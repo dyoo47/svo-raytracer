@@ -91,7 +91,6 @@ public class EfficientOctree {
   public void constructOctree(int maxLOD, int rootPointer){
     int maxSize = 1 << maxLOD;
     int[] rootPos = {0, 0, 0};
-    System.out.println("MAXSIZE: " + maxSize);
     createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
     if(maxLOD <= 9){
       VoxelData vData = new VoxelData(1024, 1024, 1024);
