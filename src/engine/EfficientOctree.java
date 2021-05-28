@@ -33,7 +33,7 @@ public class EfficientOctree {
     this.size = size;
     this.origin = origin;
     bufferSize = memSizeKB * 1024;
-    buffer = ByteBuffer.allocate(bufferSize);
+    buffer = ByteBuffer.allocate(bufferSize); //TODO: change to BufferUtils.createByteBuffer(bufferSize);
     mem = buffer.array();
     //origin = new int[]{0, -512, 0};
     createNode((byte) 1);
