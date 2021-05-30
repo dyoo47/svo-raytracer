@@ -362,6 +362,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   vec3 normal;
+  vec3 velocity = vec3(1.0f);
   if(renderMode == 0){
     for(int i=0; i < 2; i++){
       if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH)){
@@ -370,8 +371,9 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1){
         vec3 sun_color = vec3(1.0f, 1.0f, 1.0f);
         float sun_intensity = 4.0f;
         vec3 emission = sun_intensity * normalize(dot(dir, sun_dir) * sun_color);
-        accum_color += mask * emission;
-        break;
+        accum_color += mask * emission * velocity;
+        velocity = vec3(0.0f);
+        //break;
       }
       vec3 hitpoint = origin + dir * res.t;
       normal = res.normal;
