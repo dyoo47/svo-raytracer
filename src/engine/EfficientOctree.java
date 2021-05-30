@@ -33,10 +33,10 @@ public class EfficientOctree {
     this.size = size;
     this.origin = origin;
     bufferSize = memSizeKB * 1024;
-    buffer = ByteBuffer.allocate(bufferSize); //TODO: change to BufferUtils.createByteBuffer(bufferSize);
-    mem = buffer.array();
+    buffer = ByteBuffer.allocateDirect(bufferSize);
+    //mem = buffer.array();
     //origin = new int[]{0, -512, 0};
-    createNode((byte) 1);
+    //createNode((byte) 1);
     threads = new WorldGenThread[8];
     // for(int i=0; i < 8; i++){
     //   threads[i] = new WorldGenThread("wg-" + i, null, Constants.childOffsets[i], origin);
@@ -44,10 +44,10 @@ public class EfficientOctree {
     //this.voxelData = voxelData;
   }
 
-  public EfficientOctree(int memSizeKB, String svoFile){
-    bufferSize = memSizeKB * 1024;
-    readBufferFromFile(svoFile);
-  }
+  // public EfficientOctree(int memSizeKB, String svoFile){
+  //   bufferSize = memSizeKB * 1024;
+  //   readBufferFromFile(svoFile);
+  // }
 
   /*
   NODE STRUCTURE
@@ -65,18 +65,25 @@ public class EfficientOctree {
 
   private int createNode(byte val){
     int pointer = memOffset;
-    mem[memOffset++] = val;
-    mem[memOffset++] = 0;
-    mem[memOffset++] = 0;
-    mem[memOffset++] = 0;
-    mem[memOffset++] = 0;
-    mem[memOffset++] = 0;
+    // mem[memOffset++] = val;
+    // mem[memOffset++] = 0;
+    // mem[memOffset++] = 0;
+    // mem[memOffset++] = 0;
+    // mem[memOffset++] = 0;
+    // mem[memOffset++] = 0;
+    buffer.put(memOffset++, val);
+    buffer.put(memOffset++, (byte)0);
+    buffer.put(memOffset++, (byte)0);
+    buffer.put(memOffset++, (byte)0);
+    buffer.put(memOffset++, (byte)0);
+    buffer.put(memOffset++, (byte)0);
     return pointer;
   }
 
   private int createLeafNode(byte val){
     int pointer = memOffset;
-    mem[memOffset++] = val;
+    //mem[memOffset++] = val;
+    buffer.put(memOffset++, val);
     return pointer;
   }
 
@@ -91,7 +98,7 @@ public class EfficientOctree {
   public void constructOctree(int maxLOD, int rootPointer){
     int maxSize = 1 << maxLOD;
     int[] rootPos = {0, 0, 0};
-    createNode((byte) 0); //value shouldn't be read cuz root is never leaf node
+    createNode((byte) 1); //value shouldn't be read cuz root is never leaf node
     if(maxLOD <= 9){
       VoxelData vData = new VoxelData(1024, 1024, 1024);
       for(int i=0; i < 8; i++){
@@ -116,7 +123,8 @@ public class EfficientOctree {
   }
 
   public byte getValue(int parentNode){
-    return mem[parentNode];
+    //return mem[parentNode];
+    return buffer.get(parentNode);
   }
 
   private void constructOctree(int maxSize, int curLOD, int[] pPos, int parentPointer, VoxelData voxelData, boolean split){
@@ -205,12 +213,12 @@ public class EfficientOctree {
   }
   
   public ByteBuffer getByteBuffer(){
-    int limit = memOffset;
-    ByteBuffer out = BufferUtils.createByteBuffer(limit);
-    for(int i=0; i < limit; i++){
-      out.put(i, buffer.get(i));
-    }
-    return out;
+    // int limit = memOffset;
+    // ByteBuffer out = BufferUtils.createByteBuffer(limit);
+    // for(int i=0; i < limit; i++){
+    //   out.put(i, buffer.get(i));
+    // }
+    return buffer;
   }
 
   public void writeBufferToFile(String fileName){
@@ -227,22 +235,22 @@ public class EfficientOctree {
     }
   }
 
-  public void readBufferFromFile(String fileName){
-    try{
-      File infile = new File(fileName);
-      ByteBuffer buf = ByteBuffer.allocate(bufferSize);
-      FileInputStream fs = new FileInputStream(infile);
-      int b;
-      this.memOffset = 0;
-      while((b=fs.read())!=-1){
-        memOffset++;
-        buf.put((byte)b);
-      }
-      this.buffer = buf;
-      this.mem = buf.array();
-      fs.close();
-    }catch(IOException e){
-      System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
-    }
-  }
+  // public void readBufferFromFile(String fileName){
+  //   try{
+  //     File infile = new File(fileName);
+  //     ByteBuffer buf = ByteBuffer.allocate(bufferSize);
+  //     FileInputStream fs = new FileInputStream(infile);
+  //     int b;
+  //     this.memOffset = 0;
+  //     while((b=fs.read())!=-1){
+  //       memOffset++;
+  //       buf.put((byte)b);
+  //     }
+  //     this.buffer = buf;
+  //     this.mem = buf.array();
+  //     fs.close();
+  //   }catch(IOException e){
+  //     System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
+  //   }
+  // }
 }

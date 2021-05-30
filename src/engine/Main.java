@@ -122,11 +122,12 @@ public class Main {
       glUniform1i(9, world.eo.memOffset);
       //System.out.println("mem offset: " + world.eo.memOffset);
       if(lastOffset != world.eo.memOffset){
+        //System.out.println("mem offset: " + world.eo.memOffset);
         frameNumber = 0;
         lastOffset = world.eo.memOffset;
         buffer = world.eo.getByteBuffer();
         glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
-        buffer = null;
+        //buffer = null;
       }
       //Write octree buffer size to uniform
       //glUniform1i(6, octree.memOffset);
