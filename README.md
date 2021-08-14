@@ -1,6 +1,6 @@
 ## svo-raytracer
 
-Java/LWJGL pathtracer based on the paper "Efficient Sparse Voxel Octrees" by Samuli Laine and Tero Karras.
+Java/LWJGL pathtracer based on the paper _Efficient Sparse Voxel Octrees_ by Samuli Laine and Tero Karras.
 
 Features:
  - Real-time pathtraced GI
