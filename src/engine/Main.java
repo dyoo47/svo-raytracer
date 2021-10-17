@@ -107,20 +107,24 @@ public class Main {
     //glfwMaximizeWindow(window);
     int renderMode = 0;
     int lastOffset = 0;
+    double frameTime = 0.0d;
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
 
       // Trace the scene
+      double startTime = System.currentTimeMillis();
       glUseProgram(computeProgram);
       glDispatchCompute(numGroupsX, numGroupsY, 1);
       glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
       //Update frame
       frameNumber++;
       glUniform1i(5, frameNumber);
       glUniform1i(6, renderMode);
       glUniform1i(9, world.eo.memOffset);
       //System.out.println("mem offset: " + world.eo.memOffset);
+      glfwSetWindowTitle(window, "svo-raytracer | lastOffset: " + lastOffset + " | renderMode: " + renderMode + 
+      " | xyz: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2])
+      + " | frameTime: " + String.format("%.0f ms", frameTime));
       if(lastOffset != world.eo.memOffset){
         //System.out.println("mem offset: " + world.eo.memOffset);
         frameNumber = 0;
@@ -166,6 +170,10 @@ public class Main {
         renderMode = 1;
         frameNumber = 0;
       }
+      if(Input.keyDown(Input.RENDER_MODE_TWO)){
+        renderMode = 2;
+        frameNumber = 0;
+      }
       if(Input.keyDown(Input.ROTATE_LEFT)){
         frameNumber = 0;
         cam.rotate(0.0f, 0.01f, 0.0f);
@@ -206,6 +214,7 @@ public class Main {
       glUseProgram(quadProgram);
       glDrawArrays(GL_TRIANGLES, 0, 3);
       glfwSwapBuffers(window);
+      frameTime = System.currentTimeMillis() - startTime;
     }
   }
 }
