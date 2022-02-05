@@ -61,6 +61,22 @@ public class EfficientOctree {
 
   leaf
   0 :: value - 1 byte
+
+  PROPOSED STRUCTURE
+  branch
+  0 :: value - 1 byte
+  1 :: child pointer - 4 bytes
+  2 ::
+  3 ::
+  4 ::
+  5 :: leaf mask
+  if a ray stops on a non-leaf node, we calculate the normal using the face it lands on.
+  
+  leaf
+  0 :: value - 1 byte
+  1 :: normal x
+  2 :: normal y
+  3 :: normal z
   */
 
   private int createNode(byte val){
@@ -199,7 +215,7 @@ public class EfficientOctree {
         }
         if(!leaf) break;
       }
-      if(leaf) children[n] = createLeafNode(value);
+      if(leaf) children[n] = createLeafNode(value); //TODO: Calculate normal and insert into leaf node
       else children[n] = createNode(value);
       if(leaf) leafMask |= (0x01 << n);
     }

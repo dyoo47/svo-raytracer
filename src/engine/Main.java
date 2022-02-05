@@ -124,7 +124,7 @@ public class Main {
       //System.out.println("mem offset: " + world.eo.memOffset);
       glfwSetWindowTitle(window, "svo-raytracer | lastOffset: " + lastOffset + " | renderMode: " + renderMode + 
       " | xyz: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2])
-      + " | frameTime: " + String.format("%.0f ms", frameTime));
+      + " | frameTime: " + String.format("%.0f ms", frameTime) + " | fps: " + String.format("%.2f", 1000 / frameTime));
       if(lastOffset != world.eo.memOffset){
         //System.out.println("mem offset: " + world.eo.memOffset);
         frameNumber = 0;

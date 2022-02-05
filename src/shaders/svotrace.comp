@@ -25,6 +25,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 }
 
 #define EPSILON 3.552713678800501e-15f
+#define CORRECTION_FACTOR 0.0000005
 #define PI 3.14159265359f
 #define SAMPLES 1
 #define NODE_SIZE 6
@@ -356,37 +357,49 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
   castResult res;
   res.t = 2.0f;
+  bool intersect = true;
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   vec3 normal;
   vec3 velocity = vec3(1.0f);
   if(renderMode == 0){
-    for(int i=0; i < 2; i++){
+    for(int i=0; i < 3; i++){
       bool coneTrace = false;
       if(i != 0) coneTrace = true;
-      if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-        if(i == 0){
-          //velocity = vec3(0.0f);
-          break;
-        }
-        vec3 sun_dir = normalize(vec3(1, 1, 1));
-        vec3 sun_color = vec3(1.0f, 1.0f, 1.0f);
-        float sun_intensity = 4.0f;
-        vec3 emission = sun_intensity * normalize(dot(dir, sun_dir) * sun_color);
-        //vec3 emission = vec3(1.0f, 1.0f, 1.0f);
-        accum_color += mask * emission * velocity;
-        //velocity = vec3(0.0f);
-        break;
-      }
-      vec3 hitpoint = origin + dir * res.t;
+      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
+      //if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
+        // if(i == 0){
+        //   //velocity = vec3(0.0f);
+        //   break;
+        // }
+        // vec3 sun_dir = normalize(vec3(1, 1, 1));
+        // vec3 sun_color = vec3(1.0f, 1.0f, 1.0f);
+        // float sun_intensity = 4.0f;
+        // vec3 emission = sun_intensity * normalize(dot(dir, sun_dir) * sun_color);
+        // //vec3 emission = vec3(1.0f, 1.0f, 1.0f);
+        // accum_color += mask * emission * velocity;
+        // //velocity = vec3(0.0f);
+        // break;
+        // if(i == 0){
+        //   break;
+        // }
+        // vec3 matcolor = vec3(1.0f);
+        // vec3 matemi = vec3(1.0f);
+        // accum_color += vec3(0.2f);
+        // return accum_color;
+        //intersect = false;
+      //}
       normal = res.normal;
       if(dot(normal, dir) > 0){
         normal = -normal;
       }
+      vec3 hitpoint = origin + dir * res.t + normal * CORRECTION_FACTOR;
+      
       vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * sqrt(-1.0f);
 
       float rand = rand(vec2(seed0+rand(vec2(seed0, seed2*0.1f)), seed1+rand(vec2(seed1, seed2*0.02f))));
       float rand1 = 2.0f * PI * rand;
+
       //float rand2 = rand(vec2(seed0 + 1, seed1 + 1));
       //float rand1 = 2.0f * PI;
       //float rand2 = 1.0f;
@@ -396,8 +409,9 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand)); //TODO: Avoid computing this every frame.
-      //vec3 newdir = v;
+      //vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      vec3 newdir = dir - 2 * dot(dir, normal) * normal; //glossy reflections
+      //vec3 newdir = normal;
 
       origin = hitpoint;
       dir = newdir;
@@ -410,11 +424,18 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       }else{
         mat = materials[2];
       }
-      vec3 matcolor = vec3(0.5f) * hitpoint;
-      vec3 matemi = vec3(0);
-      accum_color += mask * matemi;
-      mask *= matcolor;
-      mask *= dot(newdir, normal_facing);
+      vec3 matcolor = hitpoint - 1;
+      vec3 matemi = vec3(0.0f);
+      if(intersect){
+        accum_color += mask * matemi;
+        mask *= matcolor;
+        mask *= dot(newdir, normal_facing);
+      }else{
+        vec3 skycolor = vec3(5.0f);
+        accum_color += mask * skycolor;
+        break;
+      }
+      
     }
     return accum_color;
   }else if(renderMode == 1){
@@ -454,8 +475,7 @@ void main(void) {
   //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
     int i = frameNumber;
     finalcolor += trace(camPos, normalize(dir), 
-        px.x, 
-        px.y, frameNumber);
+        0, 0, 0);
   //}
   // }else{
   //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
