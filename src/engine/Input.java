@@ -21,6 +21,7 @@ public class Input {
     public static final int RENDER_MODE_ZERO = GLFW_KEY_1;
     public static final int RENDER_MODE_ONE = GLFW_KEY_2;
     public static final int RENDER_MODE_TWO = GLFW_KEY_3;
+    public static final int RENDER_MODE_THREE = GLFW_KEY_4;
     
     long window;
     double prevX;

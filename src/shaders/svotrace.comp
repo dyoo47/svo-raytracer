@@ -29,7 +29,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define PI 3.14159265359f
 #define SAMPLES 1
 #define NODE_SIZE 6
-#define LEAF_SIZE 1
+#define LEAF_SIZE 3
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define MAX_DEPTH 11
 #define MAX_RAYCAST_ITERATIONS 1000
@@ -74,7 +74,7 @@ int getByte(uint bytePointer){
 struct Node{
     int value;
     int cp;
-    int leafMask;     
+    int leafMask;
 };
 
 Node extractNode(uint nodePointer){
@@ -85,7 +85,7 @@ Node extractNode(uint nodePointer){
   Node ret = {
     getByte(nodePointer++),
     (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
-    getByte(nodePointer++)
+    getByte(nodePointer++),
   };
   return ret;
 }
@@ -96,6 +96,8 @@ Node extractLeaf(uint nodePointer){
   //   return ret;
   // }
   Node ret = {getByte(nodePointer), 0, 0};
+  int raw = getByte(nodePointer+1) | (getByte(nodePointer+2) << 8);
+  ret.leafMask = raw;
   return ret;
 }
 
@@ -103,7 +105,7 @@ Node extractChild(uint childPointer, uint child, int leafMask){
   int i = 0;
   uint pointer = childPointer;
   while(i < child){
-    if((leafMask & (0x00000001 << i)) == (0x00000001 << i)){ 
+    if((leafMask & (0x01 << i)) == (0x01 << i)){ 
       //debugFlag = true;
       pointer += LEAF_SIZE;
     }else{
@@ -111,7 +113,7 @@ Node extractChild(uint childPointer, uint child, int leafMask){
     }
     i++;
   }
-  if((leafMask & (0x00000001 << child)) == (0x00000001 << child)){
+  if((leafMask & (0x01 << child)) == (0x01 << child)){
     return extractLeaf(pointer);
   }else{
     return extractNode(pointer);
@@ -327,6 +329,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     return false;
   }
 
+
   float tx_corner = tx_coef * (pos.x + scale_exp2) - tx_bias;
   float ty_corner = ty_coef * (pos.y + scale_exp2) - ty_bias;
   float tz_corner = tz_coef * (pos.z + scale_exp2) - tz_bias;
@@ -341,8 +344,26 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   if((octant_mask & 2u) == 0u) norm.y = -norm.y;
   if((octant_mask & 4u) == 0u) norm.z = -norm.z;
 
+
+  Node targetNode = extractChild(child_descriptor, child_shift, parent.leafMask);
+  if(targetNode.leafMask != 0){
+    int raw = targetNode.leafMask;
+    //if(targetNode.leafMask == 897) debugColor = vec3(1.0f, 0.0f, 0.0f);
+    float normX = (raw % 10)-5;
+    float normY = (((raw%100) - (raw%10))/10)-5;
+    float normZ = ((raw - (raw%100))/100)-5;
+    norm = normalize(vec3(normX, normY, normZ));
+    //if(norm == vec3(0.0f)) debugColor = vec3(1.0f, 0.0f, 0.0f);
+    //norm = normalize(vec3(0.5f, 0.5f, 0.5f));
+  }
+  
+
+  // if(raw == 12345){
+  //   debugColor = vec3(1.0f, 0.0f, 0.0f);
+  // }
+
   res.t = t_min;
-  res.value = extractChild(child_descriptor, child_shift, parent.leafMask).value;
+  res.value = targetNode.value;
   res.normal = norm;
   res.scale = scale;
   res.hitPos = pos;
@@ -409,8 +430,8 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      //vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
       //vec3 newdir = normal;
 
       origin = hitpoint;
@@ -461,6 +482,10 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       return hitpoint-1;
     }else{
       return vec3(0.0f);
+    }
+  }else if(renderMode == 3){
+    if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
+      return res.normal;
     }
   }
 }

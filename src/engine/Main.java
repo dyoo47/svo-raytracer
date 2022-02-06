@@ -174,6 +174,10 @@ public class Main {
         renderMode = 2;
         frameNumber = 0;
       }
+      if(Input.keyDown(Input.RENDER_MODE_THREE)){
+        renderMode = 3;
+        frameNumber = 0;
+      }
       if(Input.keyDown(Input.ROTATE_LEFT)){
         frameNumber = 0;
         cam.rotate(0.0f, 0.01f, 0.0f);

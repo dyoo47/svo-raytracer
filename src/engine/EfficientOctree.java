@@ -17,7 +17,7 @@ public class EfficientOctree {
   int splitLOD;
 
   static final int NODE_SIZE = 6;
-  static final int LEAF_SIZE = 1;
+  static final int LEAF_SIZE = 3;
   static byte[][] childOffsets = {
     {0, 0, 0},
     {1, 0, 0},
@@ -96,13 +96,14 @@ public class EfficientOctree {
     return pointer;
   }
 
-  private int createLeafNode(byte val){
+  private int createLeafNode(byte val, short normal){
     int pointer = memOffset;
     //mem[memOffset++] = val;
     buffer.put(memOffset++, val);
     //adding normal
-    //buffer.put(memOffset++, val);
-    //buffer.put(memOffset++, val);
+    //normal = 897;
+    buffer.put(memOffset++, (byte)(normal));
+    buffer.put(memOffset++, (byte)(normal >> 8));
     return pointer;
   }
 
@@ -218,7 +219,36 @@ public class EfficientOctree {
         }
         if(!leaf) break;
       }
-      if(leaf) children[n] = createLeafNode(value); //TODO: Calculate normal and insert into leaf node
+      if(leaf) {
+        //TODO: Calculate normal and insert into leaf node
+        if(cSize == 1){
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][0]-1; i <= cPos[n][0]+1; i++){
+            if(i < 0 || i >= voxelData.width) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+1; j++){
+              if(j < 0 || j >= voxelData.height) continue;
+              for(int k = cPos[n][2]-1; k <= cPos[n][2]+1; k++){
+                if(k < 0 || k >= voxelData.depth) continue;
+                if(voxelData.get(i, j, k) == 0){
+                  normalX += i - cPos[n][0];
+                  normalY += j - cPos[n][1];
+                  normalZ += k - cPos[n][2];
+                }
+              }
+            }
+          }
+          normalX = normalX / 2 + 5;
+          normalY = normalY / 2 + 5;
+          normalZ = normalZ / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
+          children[n] = createLeafNode(value, packed);
+        }else{
+          children[n] = createLeafNode(value, (short)0);
+        }
+      }
       else children[n] = createNode(value);
       if(leaf) leafMask |= (0x01 << n);
     }
