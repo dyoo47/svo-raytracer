@@ -361,7 +361,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   vec3 normal;
-  vec3 velocity = vec3(1.0f);
+  float velocity = 1.0f;
   if(renderMode == 0){
     for(int i=0; i < 3; i++){
       bool coneTrace = false;
@@ -410,30 +410,38 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
       vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //glossy reflections
+      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
       //vec3 newdir = normal;
 
       origin = hitpoint;
       dir = newdir;
 
-      Material mat;
-      if(res.value == 1){
-        mat = materials[1];
-      }else if(res.value == 0){
-        mat = materials[0];
-      }else{
-        mat = materials[2];
-      }
+      // Material mat;
+      // if(res.value == 1){
+      //   mat = materials[1];
+      // }else if(res.value == 0){
+      //   mat = materials[0];
+      // }else{
+      //   mat = materials[2];
+      // }
       vec3 matcolor = hitpoint - 1;
       vec3 matemi = vec3(0.0f);
+      // vec3 skycolor = vec3(5.0f);
+      // int sect = int(intersect);
+      // int antisect = int(!intersect);
+      // accum_color += mask * velocity * (matemi * sect+ skycolor * antisect);
+      // mask *= matcolor;
+      // mask *= dot(newdir, normal_facing);
+      // velocity = min(sect, velocity);
       if(intersect){
-        accum_color += mask * matemi;
+        accum_color += mask * matemi * velocity;
         mask *= matcolor;
         mask *= dot(newdir, normal_facing);
       }else{
         vec3 skycolor = vec3(5.0f);
-        accum_color += mask * skycolor;
+        accum_color += mask * skycolor * velocity;
         break;
+        //velocity = 0.0f; //make sequential traces not affect color so we can align computations
       }
       
     }

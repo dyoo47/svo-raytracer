@@ -100,6 +100,9 @@ public class EfficientOctree {
     int pointer = memOffset;
     //mem[memOffset++] = val;
     buffer.put(memOffset++, val);
+    //adding normal
+    //buffer.put(memOffset++, val);
+    //buffer.put(memOffset++, val);
     return pointer;
   }
 
@@ -116,7 +119,7 @@ public class EfficientOctree {
     int[] rootPos = {0, 0, 0};
     createNode((byte) 1); //value shouldn't be read cuz root is never leaf node
     if(maxLOD <= 9){
-      VoxelData vData = new VoxelData(1024, 1024, 1024);
+      VoxelData vData = new VoxelData(size, size, size);
       for(int i=0; i < 8; i++){
         threads[i] = new WorldGenThread("wg-" + i, vData, Constants.childOffsets[i] , origin);
         threads[i].start();
