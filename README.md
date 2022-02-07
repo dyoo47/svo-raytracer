@@ -14,3 +14,5 @@ Features:
 ![thiccblock](https://user-images.githubusercontent.com/34610019/118949025-b3f7b180-b90d-11eb-82cf-752452898c15.png)
 ![colorblobs](https://user-images.githubusercontent.com/34610019/137646215-fbc8922a-d08e-4e0b-b5c0-5004472de030.png)
 ![blobs](https://user-images.githubusercontent.com/34610019/119221525-afb1cc80-baa4-11eb-97f6-cd3b8ac5e4a1.png)
+![normals](https://user-images.githubusercontent.com/34610019/152762625-7eb71a15-6609-40ec-9403-ba9a8b4b598a.png)
+![normalmirrors](https://user-images.githubusercontent.com/34610019/152762634-831ba6b7-7f7e-4334-885f-06ffa11b9cec.png)
