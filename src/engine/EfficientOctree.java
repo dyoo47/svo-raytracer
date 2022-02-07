@@ -245,8 +245,39 @@ public class EfficientOctree {
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
           //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
           children[n] = createLeafNode(value, packed);
-        }else{
-          children[n] = createLeafNode(value, (short)0);
+        }//else{
+        //  children[n] = createLeafNode(value, (short)0);
+        //}
+        else{
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][0]-1; i <= cPos[n][0]+cSize; i++){
+            if(i < 0 || i >= voxelData.width || i >= cPos[n][0] && i <= cPos[n][0]+cSize-1) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize; j++){
+              if(j < 0 || j >= voxelData.height || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
+              for(int k = cPos[n][2]-1; k <= cPos[n][2]+cSize; k++){
+                if(k < 0 || k >= voxelData.depth || k >= cPos[n][2] && k <= cPos[n][2]+cSize-1) continue;
+                if(voxelData.get(i, j, k) == 0){
+                  normalX += Math.copySign(1, i-cPos[n][0]);
+                  normalY += Math.copySign(1, j-cPos[n][1]);
+                  normalZ += Math.copySign(1, k-cPos[n][2]);
+                }
+              }
+            }
+          }
+          //System.out.println(normalX + ", " + normalY + ", " + normalZ);
+          float maxParam = 2*(cSize+2)*(cSize+2);
+          float fnx = normalX / maxParam;
+          float fny = normalY / maxParam;
+          float fnz = normalZ / maxParam;
+          float fnmax = Math.max(Math.abs(fnx), Math.max(Math.abs(fny), Math.abs(fnz)));
+          normalX = (int)(fnx/fnmax * 9) / 2 + 5;
+          normalY = (int)(fny/fnmax * 9) / 2 + 5;
+          normalZ = (int)(fnz/fnmax * 9) / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          //System.out.println(fnx + ", " + fny + ", " + fnz + " => " + packed);
+          children[n] = createLeafNode(value, packed);
         }
       }
       else children[n] = createNode(value);
