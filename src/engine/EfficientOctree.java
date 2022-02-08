@@ -34,35 +34,10 @@ public class EfficientOctree {
     this.origin = origin;
     bufferSize = memSizeKB * 1024;
     buffer = ByteBuffer.allocateDirect(bufferSize);
-    //mem = buffer.array();
-    //origin = new int[]{0, -512, 0};
-    //createNode((byte) 1);
     threads = new WorldGenThread[8];
-    // for(int i=0; i < 8; i++){
-    //   threads[i] = new WorldGenThread("wg-" + i, null, Constants.childOffsets[i], origin);
-    // }
-    //this.voxelData = voxelData;
   }
-
-  // public EfficientOctree(int memSizeKB, String svoFile){
-  //   bufferSize = memSizeKB * 1024;
-  //   readBufferFromFile(svoFile);
-  // }
-
   /*
   NODE STRUCTURE
-  branch
-  0 :: value - 1 byte
-  1 :: child pointer - 4 bytes
-  2 ::
-  3 ::
-  4 ::
-  5 :: leaf mask
-
-  leaf
-  0 :: value - 1 byte
-
-  PROPOSED STRUCTURE
   branch
   0 :: value - 1 byte
   1 :: child pointer - 4 bytes
@@ -81,12 +56,6 @@ public class EfficientOctree {
 
   private int createNode(byte val){
     int pointer = memOffset;
-    // mem[memOffset++] = val;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
     buffer.put(memOffset++, val);
     buffer.put(memOffset++, (byte)0);
     buffer.put(memOffset++, (byte)0);
@@ -220,7 +189,6 @@ public class EfficientOctree {
         if(!leaf) break;
       }
       if(leaf) {
-        //TODO: Calculate normal and insert into leaf node
         if(cSize == 1){
           int normalX = 0;
           int normalY = 0;
@@ -245,10 +213,7 @@ public class EfficientOctree {
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
           //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
           children[n] = createLeafNode(value, packed);
-        }//else{
-        //  children[n] = createLeafNode(value, (short)0);
-        //}
-        else{
+        }else{ //TODO: Generalized algorithm needs work.
           int normalX = 0;
           int normalY = 0;
           int normalZ = 0;
@@ -266,17 +231,16 @@ public class EfficientOctree {
               }
             }
           }
-          //System.out.println(normalX + ", " + normalY + ", " + normalZ);
-          float maxParam = 2*(cSize+2)*(cSize+2);
+          float maxParam = 2*(cSize+2)*(cSize+2); //calculating max value of a single normal parameter
           float fnx = normalX / maxParam;
           float fny = normalY / maxParam;
           float fnz = normalZ / maxParam;
           float fnmax = Math.max(Math.abs(fnx), Math.max(Math.abs(fny), Math.abs(fnz)));
+          //instead of dividing by fnmax we can multiply fn by a constant then subtract so fnmax = 1.
           normalX = (int)(fnx/fnmax * 9) / 2 + 5;
           normalY = (int)(fny/fnmax * 9) / 2 + 5;
           normalZ = (int)(fnz/fnmax * 9) / 2 + 5;
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
-          //System.out.println(fnx + ", " + fny + ", " + fnz + " => " + packed);
           children[n] = createLeafNode(value, packed);
         }
       }

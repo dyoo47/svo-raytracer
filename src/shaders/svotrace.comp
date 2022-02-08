@@ -138,13 +138,20 @@ struct retInfo{
 
   leaf
   0 :: value - 1 byte
+  1 :: normal - 2 bytes
+  2 :: 
+
+  NORMAL FORMAT
+  Stored as a number in [0, 999] where each digit represents an axis.
+  [0, 5) -> [-1, 0)
+  (5, 9] -> (0, 1]
   */
   
 struct castResult {
   uint value;
   float t;
   vec3 hitPos;
-  uint scale;
+  float scale;
   vec3 debugColor;
   vec3 normal;
 };
@@ -350,12 +357,12 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     if((octant_mask & 2u) == 0u) norm.y = -norm.y;
     if((octant_mask & 4u) == 0u) norm.z = -norm.z;
   }
-
+  //TODO: Find a way to move the hitpoint to other side of voxel if we land on the backface.
   res.t = t_min;
   res.value = targetNode.value;
   res.normal = norm;
-  res.scale = scale;
-  res.hitPos = pos;
+  res.scale = scale_exp2;
+  res.hitPos = origin + t_min * dir + norm * scale_exp2;
   //res.hit = true;
   res.debugColor = vec3(0.01) * iter;
   //res.debugColor = vec3(0.01 * iter, 1 - 0.01 * scale, 0.0);
@@ -371,7 +378,6 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   vec3 normal;
-  float velocity = 1.0f;
   if(renderMode == 0){
     for(int i=0; i < 3; i++){
       bool coneTrace = false;
@@ -400,12 +406,14 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
         //intersect = false;
       //}
       normal = res.normal;
-      if(dot(normal, dir) > 0){
-        normal = -normal;
-      }
-      vec3 hitpoint = origin + dir * res.t + normal * CORRECTION_FACTOR;//move rays outside surface of material
+      // if(dot(normal, dir) > 0){
+      //   normal = -normal;
+      // }
+      //vec3 hitpoint = origin + dir * res.t + normal * res.scale;//move rays outside surface of material
+      vec3 hitpoint = res.hitPos;
       
-      vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * sqrt(-1.0f);
+      //vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * sqrt(-1.0f);
+      vec3 normal_facing = normal;
 
       float rand = rand(vec2(seed0+rand(vec2(seed0, seed2*0.1f)), seed1+rand(vec2(seed1, seed2*0.02f))));
       float rand1 = 2.0f * PI * rand;
@@ -419,8 +427,8 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      //vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
       //vec3 newdir = normal;
 
       origin = hitpoint;
@@ -444,12 +452,12 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       // mask *= dot(newdir, normal_facing);
       // velocity = min(sect, velocity);
       if(intersect){
-        accum_color += mask * matemi * velocity;
+        accum_color += mask * matemi;
         mask *= matcolor;
         mask *= dot(newdir, normal_facing);
       }else{
         vec3 skycolor = vec3(5.0f);
-        accum_color += mask * skycolor * velocity;
+        accum_color += mask * skycolor;
         break;
         //velocity = 0.0f; //make sequential traces not affect color so we can align computations
       }
