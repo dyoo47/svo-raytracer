@@ -123,8 +123,8 @@ public class Main {
       glUniform1i(9, world.eo.memOffset);
       //System.out.println("mem offset: " + world.eo.memOffset);
       glfwSetWindowTitle(window, "svo-raytracer | lastOffset: " + lastOffset + " | renderMode: " + renderMode + 
-      " | xyz: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2])
-      + " | frameTime: " + String.format("%.0f ms", frameTime));
+      " | xyz: " + ff(cam.pos[0]) + ", " + ff(cam.pos[1]) + ", " + ff(cam.pos[2])
+      + " | frameTime: " + fd(frameTime) + " | dir: " + ff(cam.dir[0]) + ", " + ff(cam.dir[1]) + ", " + ff(cam.dir[2]));
       if(lastOffset != world.eo.memOffset){
         //System.out.println("mem offset: " + world.eo.memOffset);
         frameNumber = 0;
@@ -216,5 +216,13 @@ public class Main {
       glfwSwapBuffers(window);
       frameTime = System.currentTimeMillis() - startTime;
     }
+  }
+
+  static String ff(float value){
+    return String.format("%.3f", value);
+  }
+
+  static String fd(double value){
+    return String.format("%.0f", value);
   }
 }
