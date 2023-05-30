@@ -34,6 +34,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define MAX_DEPTH 11
 #define MAX_RAYCAST_ITERATIONS 1000
 #define RENDER_SCALE 2
+#define MAX_FRAME_ITER 100
 
 struct hitinfo {
   float near;
@@ -227,13 +228,15 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     if(child_descriptor == 0){
       child_descriptor = parent.cp;
     }
-    if(coneTrace){
-      maxDepth = int(MAX_DEPTH - 20*t_min);
-      if(maxDepth < 0) maxDepth = 0;
-    }
+    // if(coneTrace){
+    //   maxDepth = int(MAX_DEPTH - 20*t_min);
+    //   if(maxDepth < 0) maxDepth = 0;
+    // }
+
     // if(t_min > 0.5f){
     //   maxDepth = 8;
     // }
+    
     // if(t_min > 1.0f){
     //   maxDepth = 7;
     // }
@@ -257,9 +260,9 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
       //   //res.hit = true;
       //   break;
       // }
-      // if(MAX_SCALE - scale == maxDepth){
-      //   break;
-      // }
+      if(MAX_SCALE - scale == maxDepth){
+        break;
+      }
 
       float tv_max = min(t_max, tc_max);
       float one_half = scale_exp2 * 0.5f;
@@ -382,7 +385,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
     for(int i=0; i < 3; i++){
       bool coneTrace = false;
       if(i != 0) coneTrace = true;
-      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
+      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, true);
       //if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
         // if(i == 0){
         //   //velocity = vec3(0.0f);
@@ -427,8 +430,8 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      //vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
       //vec3 newdir = normal;
 
       origin = hitpoint;
@@ -520,7 +523,11 @@ void main(void) {
   
   if(frameNumber > 1){
     vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
-    finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
+    if(frameNumber < MAX_FRAME_ITER){
+      finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
+    }else{
+      finalcolor = lastcolor;
+    }
   }
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));
 }

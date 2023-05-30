@@ -23,17 +23,17 @@ public class Input {
     public static final int RENDER_MODE_TWO = GLFW_KEY_3;
     public static final int RENDER_MODE_THREE = GLFW_KEY_4;
     
-    long window;
-    double prevX;
-    double prevY;
-
-    public Input(long window){
-        prevX = 0;
-        prevY = 0;
-        this.window = window;
-    }
+    static long window;
+    static double prevX;
+    static double prevY;
 
     private static boolean[] keybinds = new boolean[349];
+
+    public static void init(long windowPtr){
+        prevX = 0;
+        prevY = 0;
+        window = windowPtr;
+    }
 
     public static void setKeybinds(long window){
         glfwSetKeyCallback(window, new GLFWKeyCallback() {
@@ -53,7 +53,7 @@ public class Input {
         return keybinds[key];
     }
 
-    public double[] getMouseDelta(){
+    public static double[] getMouseDelta(){
         DoubleBuffer mouseXBuffer = BufferUtils.createDoubleBuffer(1);
         DoubleBuffer mouseYBuffer = BufferUtils.createDoubleBuffer(1);
         glfwGetCursorPos(window, mouseXBuffer, mouseYBuffer);
