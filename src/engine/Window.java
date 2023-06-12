@@ -2,6 +2,8 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.system.MemoryUtil.*;
 
+import java.util.Stack;
+
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL32;
 
@@ -15,6 +17,10 @@ public abstract class Window {
   final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
   final ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
   protected long window;
+
+  private double startTime, endTime;
+
+  protected double frameTime;
   
   protected void initWindow(){
     if (!glfwInit())
@@ -36,6 +42,7 @@ public abstract class Window {
 
     glfwSwapInterval(1);
     GL32.glClearColor(0f, 0f, 0f, 0f);
+    glfwSetWindowTitle(window, "svo-raytracer");
     
     //Initialize input
     Input.init(window);
@@ -73,13 +80,14 @@ public abstract class Window {
   }
 
   protected void startFrame(){
+    startTime = System.currentTimeMillis();
     clearBuffer();
     imGuiGlfw.newFrame();
     ImGui.newFrame();
   }
 
   protected void endFrame() {
-    ImGui.text("Hello World!");
+    drawUi();
     ImGui.render();
     imGuiGl3.renderDrawData(ImGui.getDrawData());
 
@@ -91,6 +99,8 @@ public abstract class Window {
     }
     glfwPollEvents();
     GLFW.glfwSwapBuffers(window);
+    endTime = System.currentTimeMillis();
+    frameTime = endTime - startTime;
   }
 
   public void destroy(){
@@ -102,4 +112,5 @@ public abstract class Window {
   public abstract void updateEarly();
   public abstract void update();
   public abstract void updateLate();
+  public abstract void drawUi();
 }

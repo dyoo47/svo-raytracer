@@ -1,5 +1,6 @@
 #version 430 core
 layout(binding = 0, rgba8) uniform image2D framebufferImage;
+layout(binding = 1, r32ui) uniform uimage2D pointerbufferImage;
 layout(location = 0) uniform vec3 cam[5] = {
   vec3(0.0, 2.0, 40.0), // <- position
   vec3(-1.0, -1.0, -1.0), vec3(-1.0, 1.0, -1.0), // <- left corner directions
@@ -102,7 +103,7 @@ Node extractLeaf(uint nodePointer){
   return ret;
 }
 
-Node extractChild(uint childPointer, uint child, int leafMask){
+Node extractChild(uint childPointer, uint child, int leafMask, out uint endPointer){
   int i = 0;
   uint pointer = childPointer;
   while(i < child){
@@ -114,6 +115,7 @@ Node extractChild(uint childPointer, uint child, int leafMask){
     }
     i++;
   }
+  endPointer = pointer;
   if((leafMask & (0x01 << child)) == (0x01 << child)){
     return extractLeaf(pointer);
   }else{
@@ -150,6 +152,7 @@ struct retInfo{
   
 struct castResult {
   uint value;
+  uint pointer;
   float t;
   vec3 hitPos;
   float scale;
@@ -254,7 +257,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
     // if(child_descriptor < 0) debugFlag = true;
 
-    Node child = extractChild(child_descriptor, child_shift, parent.leafMask);
+    Node child = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
     if(child.value != 0 && t_min <= t_max){ //check if voxel exists
       // if(child.cp == 0){
       //   //res.hit = true;
@@ -341,7 +344,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
 
   vec3 norm = vec3(0.0f);
-  Node targetNode = extractChild(child_descriptor, child_shift, parent.leafMask);
+  Node targetNode = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
   if(targetNode.leafMask != 0){
     int raw = targetNode.leafMask;
     float normX = (raw % 10)-5;
@@ -374,7 +377,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 }
 
 
-vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
+vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer){
   castResult res;
   res.t = 2.0f;
   bool intersect = true;
@@ -455,10 +458,12 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
       // mask *= dot(newdir, normal_facing);
       // velocity = min(sect, velocity);
       if(intersect){
+        pointer = res.pointer;
         accum_color += mask * matemi;
         mask *= matcolor;
         mask *= dot(newdir, normal_facing);
       }else{
+        pointer = 0;
         vec3 skycolor = vec3(5.0f);
         accum_color += mask * skycolor;
         break;
@@ -469,24 +474,30 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2){
     return accum_color;
   }else if(renderMode == 1){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
+      pointer = res.pointer;
       return res.debugColor;
       //return materials[res.node.value].color;
     }else{
+      pointer = 0;
       return res.debugColor;
       //return vec3(0);
     }
   }else if(renderMode == 2){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
+      pointer = res.pointer;
       vec3 hitpoint = origin + dir * res.t;
       //intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
       return hitpoint-1;
     }else{
+      pointer = 0;
       return vec3(0.0f);
     }
   }else if(renderMode == 3){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
+      pointer = res.pointer;
       return res.normal;
     }
+    pointer = 0;
   }
 }
 
@@ -494,6 +505,7 @@ layout(local_size_x = 8, local_size_y = 8) in;
 void main(void) {
   ivec2 px = ivec2(gl_GlobalInvocationID.xy);
   ivec2 size = imageSize(framebufferImage);
+
   if (any(greaterThanEqual(px, size)))
     return;
   vec2 p = (vec2(px) + vec2(0.5)) / vec2(size);
@@ -506,9 +518,10 @@ void main(void) {
   float invsamples = 1.0f / SAMPLES;
   //for(int i = 0; i < SAMPLES; i++){
   //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
-    int i = frameNumber;
-    finalcolor += trace(camPos, normalize(dir), 
-        px.x, px.y, frameNumber);
+  uint pointer = 0;
+  int i = frameNumber;
+  finalcolor += trace(camPos, normalize(dir), 
+      px.x, px.y, frameNumber, pointer);
   //}
   // }else{
   //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
@@ -518,8 +531,22 @@ void main(void) {
 
   //Node debugNode = extractNode(407);
   //if(debugFlag) debugColor = vec3(0, 1, 0);
+
+  // if(imageLoad(pointerbufferImage, px).x == 55){
+  //   debugColor = vec3(1.0f, 0.0f, 0.0f);
+  // }
+
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   //if(px.x % 8 == 0 && px.y % 8 == 0) finalcolor = debugColor;
+
+  //debug crosshair
+  // vec3 crosshairColor = vec3(0.0f, 1.0f, 1.0f);
+  // int crossWidthPx = 8;
+  // int crossHeightPx = 8;
+  // if(px.x > 960 - crossWidthPx/2 && px.x < 960 + crossWidthPx/2 && 
+  //   px.y > 540 - crossHeightPx/2 && px.y < 540 + crossHeightPx/2){
+  //   finalcolor = crosshairColor;
+  // }
   
   if(frameNumber > 1){
     vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
@@ -529,5 +556,7 @@ void main(void) {
       finalcolor = lastcolor;
     }
   }
-  imageStore(framebufferImage, px, (vec4(finalcolor, 1.0)));
+  imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
+  imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
+  //imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
 }

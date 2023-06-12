@@ -2,6 +2,10 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL43C.*;
 import java.nio.ByteBuffer;
 
+import org.lwjgl.BufferUtils;
+
+import imgui.ImGui;
+
 public class Main extends Application {
 
   private static int frameNumber = 1;
@@ -15,25 +19,43 @@ public class Main extends Application {
 
   int numGroupsX, numGroupsY;
   int renderMode, lastOffset;
-  double frameTime;
 
   World world;
   Camera cam;
 
   ByteBuffer buffer;
 
+  int framebuffer;
+  int pointerbuffer;
+  ByteBuffer pixels;
+  int[] frameWidth;
+  int[] frameHeight;
+  byte[] pixel;
+  int voxelPointer;
+
   @Override
   protected void preRun() {
+
+    pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);
+    pixel = new byte[4];
 
     // Create VAO
     glBindVertexArray(glGenVertexArrays());
 
     // Create framebuffer texture to render into
-    int framebuffer = glGenTextures();
+    framebuffer = glGenTextures();
     glBindTexture(GL_TEXTURE_2D, framebuffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(0, framebuffer, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+    //Create pointerbuffer texture to store voxel pointer data
+    pointerbuffer = glGenTextures();
+    glBindTexture(GL_TEXTURE_2D, pointerbuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32UI, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
+    glBindImageTexture(1, pointerbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
+
 
     // Create program to render framebuffer texture as fullscreen quad
     System.out.print("creating fullscreen quad...");
@@ -92,24 +114,43 @@ public class Main extends Application {
     //glfwMaximizeWindow(window);
     renderMode = 0;
     lastOffset = 0;
-    frameTime = 0.0d;
   }
 
   @Override
-  public void update() {
-    double startTime = System.currentTimeMillis();
+  public void updateEarly() {
     glUseProgram(computeProgram);
     glDispatchCompute(numGroupsX, numGroupsY, 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    //glReadPixels(0, 0, 1, 1, GL_ALPHA, GL_UNSIGNED_BYTE, alpha);
+    glBindTexture(GL_TEXTURE_2D, pointerbuffer);
+    frameWidth = new int[1];
+    frameHeight = new int[1];
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, frameWidth);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, frameHeight);
+    pixels.clear();
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, pixels);
+    int row = 540 * Constants.WINDOW_WIDTH * 4;
+    int col = 960 * 4;
+    int offset = row + col;
+    // pixel[0] = Byte.toUnsignedInt(pixels.get(0 + offset));
+    // pixel[1] = Byte.toUnsignedInt(pixels.get(1 + offset));
+    // pixel[2] = Byte.toUnsignedInt(pixels.get(2 + offset));
+    // pixel[3] = Byte.toUnsignedInt(pixels.get(3 + offset));
+    pixel[0] = pixels.get(0 + offset);
+    pixel[1] = pixels.get(1 + offset);
+    pixel[2] = pixels.get(2 + offset);
+    pixel[3] = pixels.get(3 + offset);
+    //voxelPointer = ByteBuffer.wrap(pixel).getInt();
+    voxelPointer = pixels.getInt(offset);
+    glBindTexture(GL_TEXTURE_2D, framebuffer);
+
     //Update frame
     frameNumber++;
     glUniform1i(5, frameNumber);
     glUniform1i(6, renderMode);
     glUniform1i(9, world.eo.memOffset);
     //System.out.println("mem offset: " + world.eo.memOffset);
-    glfwSetWindowTitle(window, "svo-raytracer | lastOffset: " + lastOffset + " | renderMode: " + renderMode + 
-    " | xyz: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2])
-    + " | frameTime: " + String.format("%.0f ms", frameTime));
     if(lastOffset != world.eo.memOffset){
       //System.out.println("mem offset: " + world.eo.memOffset);
       frameNumber = 0;
@@ -201,19 +242,26 @@ public class Main extends Application {
     // Display framebuffer texture
     glUseProgram(quadProgram);
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    //glfwSwapBuffers(window);
-    frameTime = System.currentTimeMillis() - startTime;
   }
 
   @Override
-  public void updateEarly() {
-    // TODO Auto-generated method stub
+  public void drawUi() {
+    ImGui.text("Render Mode: " + renderMode);
+    ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2]));
+    ImGui.text("Octree Size: " + lastOffset + " bytes");
+    ImGui.text("Frame Time: " + frameTime + " ms");
+    ImGui.text("Texture Width: " + frameWidth[0]);
+    ImGui.text("Texture Height: " + frameHeight[0]);
+    ImGui.text("Voxel Pointer: " + pixel[0] + " " + pixel[1] + " " + pixel[2] + " " + pixel[3] + " -> " + voxelPointer);
+  }
+  
+  @Override
+  public void update() {
     
   }
 
   @Override
   public void updateLate() {
-    // TODO Auto-generated method stub
     
   }
 

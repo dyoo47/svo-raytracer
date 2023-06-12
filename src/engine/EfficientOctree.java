@@ -297,4 +297,18 @@ public class EfficientOctree {
   //     System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
   //   }
   // }
+
+  public void editLeafNodeValue(int pointer, byte val){
+    buffer.put(pointer, val);
+  }
+
+  //General idea is to use editOctreeSection to 
+
+  public void editOctreeSection(int parentPointer){
+
+  }
+
+  public void recompressOctree(){
+
+  }
 }
