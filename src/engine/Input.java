@@ -3,6 +3,7 @@ import org.lwjgl.glfw.*;
 import static org.lwjgl.glfw.GLFW.*;
 
 import java.nio.DoubleBuffer;
+import java.util.ArrayList;
 
 public class Input {
 
@@ -21,18 +22,27 @@ public class Input {
     public static final int RENDER_MODE_ZERO = GLFW_KEY_1;
     public static final int RENDER_MODE_ONE = GLFW_KEY_2;
     public static final int RENDER_MODE_TWO = GLFW_KEY_3;
-    
-    long window;
-    double prevX;
-    double prevY;
+    public static final int RENDER_MODE_THREE = GLFW_KEY_4;
 
-    public Input(long window){
-        prevX = 0;
-        prevY = 0;
-        this.window = window;
-    }
+    public static final int REMOVE_NODE = GLFW_KEY_APOSTROPHE;
+    
+    static long window;
+    static double prevX;
+    static double prevY;
 
     private static boolean[] keybinds = new boolean[349];
+    private static ArrayList<Integer> keybindsPressed;
+
+    public static void init(long windowPtr){
+        keybindsPressed = new ArrayList<Integer>();
+        prevX = 0;
+        prevY = 0;
+        window = windowPtr;
+    }
+
+    public static void update(){
+        keybindsPressed.clear();
+    }
 
     public static void setKeybinds(long window){
         glfwSetKeyCallback(window, new GLFWKeyCallback() {
@@ -41,6 +51,7 @@ public class Input {
                     glfwSetWindowShouldClose(window, true);
                 if(action == GLFW_PRESS){
                     keybinds[key] = true;
+                    keybindsPressed.add(key);
                 }else if(action == GLFW_RELEASE){
                     keybinds[key] = false;
                 }
@@ -52,7 +63,11 @@ public class Input {
         return keybinds[key];
     }
 
-    public double[] getMouseDelta(){
+    public static boolean keyPressed(int key){
+        return keybindsPressed.contains(key);
+    }
+
+    public static double[] getMouseDelta(){
         DoubleBuffer mouseXBuffer = BufferUtils.createDoubleBuffer(1);
         DoubleBuffer mouseYBuffer = BufferUtils.createDoubleBuffer(1);
         glfwGetCursorPos(window, mouseXBuffer, mouseYBuffer);

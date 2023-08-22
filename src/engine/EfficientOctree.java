@@ -17,7 +17,7 @@ public class EfficientOctree {
   int splitLOD;
 
   static final int NODE_SIZE = 6;
-  static final int LEAF_SIZE = 1;
+  static final int LEAF_SIZE = 3;
   static byte[][] childOffsets = {
     {0, 0, 0},
     {1, 0, 0},
@@ -34,21 +34,8 @@ public class EfficientOctree {
     this.origin = origin;
     bufferSize = memSizeKB * 1024;
     buffer = ByteBuffer.allocateDirect(bufferSize);
-    //mem = buffer.array();
-    //origin = new int[]{0, -512, 0};
-    //createNode((byte) 1);
     threads = new WorldGenThread[8];
-    // for(int i=0; i < 8; i++){
-    //   threads[i] = new WorldGenThread("wg-" + i, null, Constants.childOffsets[i], origin);
-    // }
-    //this.voxelData = voxelData;
   }
-
-  // public EfficientOctree(int memSizeKB, String svoFile){
-  //   bufferSize = memSizeKB * 1024;
-  //   readBufferFromFile(svoFile);
-  // }
-
   /*
   NODE STRUCTURE
   branch
@@ -58,19 +45,17 @@ public class EfficientOctree {
   3 ::
   4 ::
   5 :: leaf mask
-
+  if a ray stops on a non-leaf node, we calculate the normal using the face it lands on.
+  
   leaf
   0 :: value - 1 byte
+  1 :: normal x
+  2 :: normal y
+  3 :: normal z
   */
 
   private int createNode(byte val){
     int pointer = memOffset;
-    // mem[memOffset++] = val;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
-    // mem[memOffset++] = 0;
     buffer.put(memOffset++, val);
     buffer.put(memOffset++, (byte)0);
     buffer.put(memOffset++, (byte)0);
@@ -80,10 +65,14 @@ public class EfficientOctree {
     return pointer;
   }
 
-  private int createLeafNode(byte val){
+  private int createLeafNode(byte val, short normal){
     int pointer = memOffset;
     //mem[memOffset++] = val;
     buffer.put(memOffset++, val);
+    //adding normal
+    //normal = 897;
+    buffer.put(memOffset++, (byte)(normal));
+    buffer.put(memOffset++, (byte)(normal >> 8));
     return pointer;
   }
 
@@ -100,7 +89,7 @@ public class EfficientOctree {
     int[] rootPos = {0, 0, 0};
     createNode((byte) 1); //value shouldn't be read cuz root is never leaf node
     if(maxLOD <= 9){
-      VoxelData vData = new VoxelData(1024, 1024, 1024);
+      VoxelData vData = new VoxelData(size, size, size);
       for(int i=0; i < 8; i++){
         threads[i] = new WorldGenThread("wg-" + i, vData, Constants.childOffsets[i] , origin);
         threads[i].start();
@@ -199,7 +188,62 @@ public class EfficientOctree {
         }
         if(!leaf) break;
       }
-      if(leaf) children[n] = createLeafNode(value);
+      if(leaf) {
+        if(cSize == 1){
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][0]-1; i <= cPos[n][0]+1; i++){
+            if(i < 0 || i >= voxelData.width) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+1; j++){
+              if(j < 0 || j >= voxelData.height) continue;
+              for(int k = cPos[n][2]-1; k <= cPos[n][2]+1; k++){
+                if(k < 0 || k >= voxelData.depth) continue;
+                if(voxelData.get(i, j, k) == 0){
+                  normalX += i - cPos[n][0];
+                  normalY += j - cPos[n][1];
+                  normalZ += k - cPos[n][2];
+                }
+              }
+            }
+          }
+          normalX = normalX / 2 + 5;
+          normalY = normalY / 2 + 5;
+          normalZ = normalZ / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
+          children[n] = createLeafNode(value, packed);
+        }else{ //TODO: Generalized algorithm needs work.
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][0]-1; i <= cPos[n][0]+cSize; i++){
+            if(i < 0 || i >= voxelData.width || i >= cPos[n][0] && i <= cPos[n][0]+cSize-1) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize; j++){
+              if(j < 0 || j >= voxelData.height || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
+              for(int k = cPos[n][2]-1; k <= cPos[n][2]+cSize; k++){
+                if(k < 0 || k >= voxelData.depth || k >= cPos[n][2] && k <= cPos[n][2]+cSize-1) continue;
+                if(voxelData.get(i, j, k) == 0){
+                  normalX += Math.copySign(1, i-cPos[n][0]);
+                  normalY += Math.copySign(1, j-cPos[n][1]);
+                  normalZ += Math.copySign(1, k-cPos[n][2]);
+                }
+              }
+            }
+          }
+          float maxParam = 2*(cSize+2)*(cSize+2); //calculating max value of a single normal parameter
+          float fnx = normalX / maxParam;
+          float fny = normalY / maxParam;
+          float fnz = normalZ / maxParam;
+          float fnmax = Math.max(Math.abs(fnx), Math.max(Math.abs(fny), Math.abs(fnz)));
+          //instead of dividing by fnmax we can multiply fn by a constant then subtract so fnmax = 1.
+          normalX = (int)(fnx/fnmax * 9) / 2 + 5;
+          normalY = (int)(fny/fnmax * 9) / 2 + 5;
+          normalZ = (int)(fnz/fnmax * 9) / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          children[n] = createLeafNode(value, packed);
+        }
+      }
       else children[n] = createNode(value);
       if(leaf) leafMask |= (0x01 << n);
     }
@@ -253,4 +297,18 @@ public class EfficientOctree {
   //     System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
   //   }
   // }
+
+  public void editLeafNodeValue(int pointer, byte val){
+    buffer.put(pointer, val);
+  }
+
+  //General idea is to use editOctreeSection to 
+
+  public void editOctreeSection(int parentPointer){
+
+  }
+
+  public void recompressOctree(){
+
+  }
 }
