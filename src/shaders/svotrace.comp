@@ -498,6 +498,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       return res.normal;
     }
     pointer = 0;
+  }else if(renderMode == 4){
   }
 }
 

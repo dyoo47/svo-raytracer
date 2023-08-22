@@ -3,6 +3,7 @@ import org.lwjgl.glfw.*;
 import static org.lwjgl.glfw.GLFW.*;
 
 import java.nio.DoubleBuffer;
+import java.util.ArrayList;
 
 public class Input {
 
@@ -22,17 +23,25 @@ public class Input {
     public static final int RENDER_MODE_ONE = GLFW_KEY_2;
     public static final int RENDER_MODE_TWO = GLFW_KEY_3;
     public static final int RENDER_MODE_THREE = GLFW_KEY_4;
+
+    public static final int REMOVE_NODE = GLFW_KEY_APOSTROPHE;
     
     static long window;
     static double prevX;
     static double prevY;
 
     private static boolean[] keybinds = new boolean[349];
+    private static ArrayList<Integer> keybindsPressed;
 
     public static void init(long windowPtr){
+        keybindsPressed = new ArrayList<Integer>();
         prevX = 0;
         prevY = 0;
         window = windowPtr;
+    }
+
+    public static void update(){
+        keybindsPressed.clear();
     }
 
     public static void setKeybinds(long window){
@@ -42,6 +51,7 @@ public class Input {
                     glfwSetWindowShouldClose(window, true);
                 if(action == GLFW_PRESS){
                     keybinds[key] = true;
+                    keybindsPressed.add(key);
                 }else if(action == GLFW_RELEASE){
                     keybinds[key] = false;
                 }
@@ -51,6 +61,10 @@ public class Input {
 
     public static boolean keyDown(int key){
         return keybinds[key];
+    }
+
+    public static boolean keyPressed(int key){
+        return keybindsPressed.contains(key);
     }
 
     public static double[] getMouseDelta(){

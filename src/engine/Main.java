@@ -1,6 +1,7 @@
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL43C.*;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
 
@@ -27,11 +28,14 @@ public class Main extends Application {
 
   int framebuffer;
   int pointerbuffer;
+
   ByteBuffer pixels;
   int[] frameWidth;
   int[] frameHeight;
   byte[] pixel;
   int voxelPointer;
+
+  boolean dirty = false;
 
   @Override
   protected void preRun() {
@@ -141,7 +145,6 @@ public class Main extends Application {
     pixel[1] = pixels.get(1 + offset);
     pixel[2] = pixels.get(2 + offset);
     pixel[3] = pixels.get(3 + offset);
-    //voxelPointer = ByteBuffer.wrap(pixel).getInt();
     voxelPointer = pixels.getInt(offset);
     glBindTexture(GL_TEXTURE_2D, framebuffer);
 
@@ -151,7 +154,8 @@ public class Main extends Application {
     glUniform1i(6, renderMode);
     glUniform1i(9, world.eo.memOffset);
     //System.out.println("mem offset: " + world.eo.memOffset);
-    if(lastOffset != world.eo.memOffset){
+    if(lastOffset != world.eo.memOffset || dirty){
+      dirty = false;
       //System.out.println("mem offset: " + world.eo.memOffset);
       frameNumber = 0;
       lastOffset = world.eo.memOffset;
@@ -232,6 +236,11 @@ public class Main extends Application {
     }else{
       cam.setSpeed(0.0005f);
     }
+    if(Input.keyPressed(Input.REMOVE_NODE)){
+      dirty = true;
+      System.out.println("Edited node " + voxelPointer + ".");
+      world.eo.editLeafNodeValue(voxelPointer, (byte)0);
+    }
 
 
     glUniform3fv(8, cam.pos);
@@ -262,7 +271,7 @@ public class Main extends Application {
 
   @Override
   public void updateLate() {
-    
+    Input.update();
   }
 
 
