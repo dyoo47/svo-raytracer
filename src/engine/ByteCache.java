@@ -8,11 +8,20 @@ public class ByteCache {
   public ByteCache(int cacheSize){
     this.cacheSize = cacheSize;
     buffer = ByteBuffer.allocateDirect(cacheSize);
-    start = cacheSize - 1;
+    start = cacheSize;
   }
 
   public void appendByte(byte data){
-    buffer.put(start, data);
     start = (start - 1) % cacheSize;
+    if(start < 0) start += cacheSize;
+    buffer.put(start, data);
+  }
+
+  public byte getFirst(){
+    return buffer.get(start);
+  }
+
+  public ByteBuffer getBuffer(){
+    return buffer;
   }
 }
