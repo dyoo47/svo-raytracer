@@ -25,6 +25,7 @@ public class Main extends Application {
   Camera cam;
 
   ByteBuffer buffer;
+  OctreeStreamer octreeStreamer;
 
   int framebuffer;
   int pointerbuffer;
@@ -99,12 +100,23 @@ public class Main extends Application {
     cam = new Camera();
     cam.setPos(1.5f, 1.5f, 2.0f);
 
+    //Create memory cache
+    int requestSsbo = 0;
+    requestSsbo = glGenBuffers();
+    int requestBindIndex = 10;
+    int requestBlockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "requestStorage");
+    glShaderStorageBlockBinding(computeProgram, requestBlockIndex, requestBindIndex);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, requestSsbo);
+    octreeStreamer = new OctreeStreamer();
+
+
     int ssbo = 0;
     ssbo = glGenBuffers();
     int bindIndex = 7;
     int blockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "shaderStorage");
     glShaderStorageBlockBinding(computeProgram, blockIndex, bindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+
 
     buffer = world.octreeBuffer;
     System.out.println("mem offset: " + world.eo.memOffset);
@@ -153,6 +165,9 @@ public class Main extends Application {
     glUniform1i(5, frameNumber);
     glUniform1i(6, renderMode);
     glUniform1i(9, world.eo.memOffset);
+
+    glGetBufferSubData(10, 0, octreeStreamer.requestBuffer);
+
     //System.out.println("mem offset: " + world.eo.memOffset);
     if(lastOffset != world.eo.memOffset || dirty){
       dirty = false;
@@ -262,6 +277,7 @@ public class Main extends Application {
     ImGui.text("Texture Width: " + frameWidth[0]);
     ImGui.text("Texture Height: " + frameHeight[0]);
     ImGui.text("Voxel Pointer: " + pixel[0] + " " + pixel[1] + " " + pixel[2] + " " + pixel[3] + " -> " + voxelPointer);
+    ImGui.text("Request Buffer [0]: " + Integer.toString(octreeStreamer.requestBuffer.getInt(0)));
   }
   
   @Override

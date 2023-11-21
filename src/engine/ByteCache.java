@@ -1,14 +1,14 @@
 import java.nio.ByteBuffer;
 
 public class ByteCache {
-  int start;
-  ByteBuffer buffer;
-  int cacheSize;
+  private int start;
+  private ByteBuffer buffer;
+  private int cacheSize;
 
-  public ByteCache(int cacheSize){
-    this.cacheSize = cacheSize;
-    buffer = ByteBuffer.allocateDirect(cacheSize);
-    start = cacheSize;
+  public ByteCache(int cacheSizeMb){
+    this.cacheSize = cacheSizeMb;
+    buffer = ByteBuffer.allocateDirect(cacheSizeMb * 1000000);
+    start = cacheSizeMb;
   }
 
   public void appendByte(byte data){

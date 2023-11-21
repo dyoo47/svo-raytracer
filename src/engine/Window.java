@@ -2,8 +2,6 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.system.MemoryUtil.*;
 
-import java.util.Stack;
-
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL32;
 

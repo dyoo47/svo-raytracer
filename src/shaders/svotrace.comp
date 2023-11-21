@@ -14,6 +14,10 @@ layout(std430, binding = 7) readonly buffer shaderStorage{
 };
 layout(location = 8) uniform vec3 camPos;
 layout(location = 9) uniform int bufferEnd;
+layout(std430, binding = 10) writeonly buffer requestStorage{
+  uint[] requestBuffer;
+};
+
 int endOffset = bufferEnd / 4 + 1;
 
 struct sphere{
@@ -90,6 +94,10 @@ Node extractNode(uint nodePointer){
     getByte(nodePointer++),
   };
   return ret;
+}
+
+void requestNode(){
+  requestBuffer[0] = 12;
 }
 
 Node extractLeaf(uint nodePointer){
@@ -504,6 +512,9 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void main(void) {
+
+  requestNode();
+
   ivec2 px = ivec2(gl_GlobalInvocationID.xy);
   ivec2 size = imageSize(framebufferImage);
 

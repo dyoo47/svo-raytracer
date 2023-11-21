@@ -16,6 +16,7 @@ public class VoxelData {
             for(int j=0; j < height; j++){
                 for(int k=0; k < depth; k++){
                     set(i, j, k, (byte) 0);//sampleSphere(i, j, k);
+                    // sampleMod(i, j, k);
                 }
             }
         }
