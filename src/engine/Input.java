@@ -1,5 +1,7 @@
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
+import org.lwjgl.system.libffi.FFICIF;
+
 import static org.lwjgl.glfw.GLFW.*;
 
 import java.nio.DoubleBuffer;
@@ -55,6 +57,18 @@ public class Input {
                 }else if(action == GLFW_RELEASE){
                     keybinds[key] = false;
                 }
+            }
+
+            @Override
+            public void callback(long arg0, long arg1) {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'callback'");
+            }
+
+            @Override
+            public FFICIF getCallInterface() {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'getCallInterface'");
             }
         });
     }

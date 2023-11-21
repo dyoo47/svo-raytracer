@@ -1,0 +1,21 @@
+{
+  "build": "release",
+  "mode": "zip",
+  "selectedAddons": [
+    "joml"
+  ],
+  "platform": [
+    "windows"
+  ],
+  "descriptions": false,
+  "compact": false,
+  "hardcoded": false,
+  "javadoc": true,
+  "includeJSON": true,
+  "source": true,
+  "osgi": false,
+  "language": "groovy",
+  "preset": "minimal-opengl",
+  "version": "3.3.3",
+  "versionLatest": "3.3.3"
+}

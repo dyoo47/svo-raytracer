@@ -13,4 +13,5 @@ public class ByteCacheTest {
     assertEquals((byte)2, byteCache.getBuffer().get(2));
     assertEquals((byte)2, byteCache.getFirst());
   }
+  
 }
