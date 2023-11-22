@@ -107,8 +107,24 @@ public class Main extends Application {
     int requestBlockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "requestStorage");
     glShaderStorageBlockBinding(computeProgram, requestBlockIndex, requestBindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, requestSsbo);
-    octreeStreamer = new OctreeStreamer();
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo);
+    // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    ByteBuffer testbuffer = ByteBuffer.allocateDirect(Constants.REQUEST_BUFFER_SIZE_KB * 1000);
+    testbuffer.put(0, (byte)11);
+    testbuffer.put(1, (byte)12);
 
+    System.out.println("test buffer:");
+    System.out.println(testbuffer.get(0));
+    System.out.println(testbuffer.get(1));
+
+    // glBindBufferRange(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo, 0, 3);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, testbuffer, GL_DYNAMIC_DRAW);
+    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo);
+
+    octreeStreamer = new OctreeStreamer();
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); //Get buffer and set buffer must match in size.
+    octreeStreamer.printBuffer(10);
+    
 
     int ssbo = 0;
     ssbo = glGenBuffers();
@@ -166,7 +182,7 @@ public class Main extends Application {
     glUniform1i(6, renderMode);
     glUniform1i(9, world.eo.memOffset);
 
-    glGetBufferSubData(10, 0, octreeStreamer.requestBuffer);
+    
 
     //System.out.println("mem offset: " + world.eo.memOffset);
     if(lastOffset != world.eo.memOffset || dirty){
@@ -175,6 +191,7 @@ public class Main extends Application {
       frameNumber = 0;
       lastOffset = world.eo.memOffset;
       buffer = world.eo.getByteBuffer();
+      glBindBuffer(GL_SHADER_STORAGE_BUFFER, 7);
       glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
       //buffer = null;
     }
@@ -277,7 +294,10 @@ public class Main extends Application {
     ImGui.text("Texture Width: " + frameWidth[0]);
     ImGui.text("Texture Height: " + frameHeight[0]);
     ImGui.text("Voxel Pointer: " + pixel[0] + " " + pixel[1] + " " + pixel[2] + " " + pixel[3] + " -> " + voxelPointer);
-    ImGui.text("Request Buffer [0]: " + Integer.toString(octreeStreamer.requestBuffer.getInt(0)));
+    // ImGui.text("Request Buffer [0]: " + Integer.toString(octreeStreamer.requestBuffer.get(0)));
+    // ImGui.text("Request Buffer [1]: " + Integer.toString(octreeStreamer.requestBuffer.get(1)));
+    // ImGui.text("Request Buffer [2]: " + Integer.toString(octreeStreamer.requestBuffer.get(2)));
+    // ImGui.text("Request Buffer [3]: " + Integer.toString(octreeStreamer.requestBuffer.get(3)));
   }
   
   @Override

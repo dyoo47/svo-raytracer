@@ -24,4 +24,11 @@ public class ByteCache {
   public ByteBuffer getBuffer(){
     return buffer;
   }
+
+  public void printBuffer(){
+    System.out.println("Printing byte cache of size " + cacheSize + "MB");
+    for(byte b : buffer.array()){
+      System.out.println(b);
+    }
+  }
 }
