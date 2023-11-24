@@ -1,7 +1,12 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 
 public class EfficientOctree {
@@ -268,12 +273,39 @@ public class EfficientOctree {
       File outfile = new File(fileName);
       ByteBuffer buf = this.getByteBuffer();
       FileOutputStream fs = new FileOutputStream(outfile, false);
-      //buf.flip();
+      ByteBuffer header = ByteBuffer.allocate(4);
+      header.putInt(memOffset);
+      System.out.println(header.getInt(0));
+      
+      fs.write(header.array());
       fs.getChannel().write(buf);
       fs.getChannel().close();
       fs.close();
     }catch(IOException e){
       System.out.println("Error while writing buffer to " + fileName + ": " + e.getMessage());
+    }
+  }
+
+  public void readBufferFromFile(String fileName){
+    try{
+      SeekableByteChannel ch = Files.newByteChannel(Paths.get(fileName), StandardOpenOption.READ);
+      ByteBuffer header = ByteBuffer.allocate(4);
+      ch.read(header);
+      System.out.println("memOffset: " + header.getInt(0));
+
+      System.out.println("buf position: " + buffer.position());
+      ch.read(buffer);
+      buffer.flip();
+      // for(int i=40; i<60; i++){
+      //   System.out.println(buf.get(i));
+      // }
+      this.memOffset = header.getInt(0);
+      ch.close();
+      System.out.println("buf position: " + buffer.position());
+
+    }catch(Exception e){
+      System.out.println("Error while reading file " + fileName + ": ");
+      e.printStackTrace();
     }
   }
 

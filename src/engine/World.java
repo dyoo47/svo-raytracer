@@ -21,6 +21,22 @@ public class World {
     System.out.println("Initialization complete!");
   }
 
+public World(int maxLOD, int chunkSize, String fileName){
+    origin = new int[]{0, -512, 0};
+    System.out.println("Initializing world...");
+    this.maxLOD = maxLOD;
+    this.size = chunkSize;
+    double startTime = System.currentTimeMillis();
+
+    eo = new EfficientOctree(100000, size, origin);
+    eo.readBufferFromFile(fileName);
+    octreeBuffer = eo.getByteBuffer();
+
+    double endTime = System.currentTimeMillis();
+    System.out.println("Octree data generated in " + (endTime-startTime)/1000 + "s.");
+    System.out.println("Initialization complete!");
+  }
+
   private void generateOctreeData(){
     eo = new EfficientOctree(100000, size, origin);
     //eo.constructOctree(maxLOD, 0);

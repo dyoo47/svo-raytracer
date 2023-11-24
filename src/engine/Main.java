@@ -93,8 +93,9 @@ public class Main extends Application {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    world = new World(9, 1024);
+    world = new World(9, 1024, "level1.svo");
     System.out.println(" done!");
+    
 
     //IntBuffer out = BufferUtils.createIntBuffer(1);
     cam = new Camera();
@@ -113,9 +114,9 @@ public class Main extends Application {
     testbuffer.put(0, (byte)11);
     testbuffer.put(1, (byte)12);
 
-    System.out.println("test buffer:");
-    System.out.println(testbuffer.get(0));
-    System.out.println(testbuffer.get(1));
+    //System.out.println("test buffer:");
+    //System.out.println(testbuffer.get(0));
+    //System.out.println(testbuffer.get(1));
 
     // glBindBufferRange(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, testbuffer, GL_DYNAMIC_DRAW);
@@ -123,7 +124,7 @@ public class Main extends Application {
 
     octreeStreamer = new OctreeStreamer();
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); //Get buffer and set buffer must match in size.
-    octreeStreamer.printBuffer(10);
+    //octreeStreamer.printBuffer(10);
     
 
     int ssbo = 0;
@@ -135,7 +136,11 @@ public class Main extends Application {
 
 
     buffer = world.octreeBuffer;
+    // for(int i=40; i<60; i++){
+    //   System.out.println(buffer.get(i));
+    // }
     System.out.println("mem offset: " + world.eo.memOffset);
+    System.out.println("Remaining: " + buffer.remaining());
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
@@ -187,7 +192,10 @@ public class Main extends Application {
     //System.out.println("mem offset: " + world.eo.memOffset);
     if(lastOffset != world.eo.memOffset || dirty){
       dirty = false;
-      //System.out.println("mem offset: " + world.eo.memOffset);
+      System.out.println("updated");
+      for(int i=0; i<20; i++){
+        System.out.println(buffer.get(i));
+      }
       frameNumber = 0;
       lastOffset = world.eo.memOffset;
       buffer = world.eo.getByteBuffer();
@@ -222,6 +230,12 @@ public class Main extends Application {
     if(Input.keyDown(Input.MOVE_DOWN)){
       frameNumber = 0;
       cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
+    }
+    if(Input.keyPressed(Input.SAVE_WORLD)){
+      world.eo.writeBufferToFile("level1.svo");
+    }
+    if(Input.keyPressed(Input.READ_WORLD)){
+      world.eo.readBufferFromFile("level1.svo");
     }
     if(Input.keyDown(Input.RENDER_MODE_ZERO)){
       renderMode = 0;

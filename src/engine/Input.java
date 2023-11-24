@@ -27,6 +27,8 @@ public class Input {
     public static final int RENDER_MODE_THREE = GLFW_KEY_4;
 
     public static final int REMOVE_NODE = GLFW_KEY_APOSTROPHE;
+    public static final int SAVE_WORLD = GLFW_KEY_0;
+    public static final int READ_WORLD = GLFW_KEY_9;
     
     static long window;
     static double prevX;

@@ -547,6 +547,9 @@ void main(void) {
   // if(imageLoad(pointerbufferImage, px).x == 55){
   //   debugColor = vec3(1.0f, 0.0f, 0.0f);
   // }
+  if(octreeBuffer[0] == 0){
+    debugColor = vec3(1.0f, 0.0f, 0.0f);
+  }
 
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   //if(px.x % 8 == 0 && px.y % 8 == 0) finalcolor = debugColor;
