@@ -6,7 +6,7 @@ public class Constants {
     public static final float CAMERA_SENSITIVITY = 0.002f;
     public static final float CAMERA_LOWER_LIMIT = -1.570f;
     public static final float CAMERA_UPPER_LIMIT = 1.570f;
-    public static final int[][] childOffsets = {
+    public static final int[][] CHILD_OFFSETS = {
         {0, 0, 0},
         {1, 0, 0},
         {0, 1, 0},
@@ -16,6 +16,8 @@ public class Constants {
         {0, 1, 1},
         {1, 1, 1}
     };
+
+    public static final int[] WORLD_OFFSET = {0, -512, 0};
 
     class Math{
         public static final float PI = 3.14159265359f;

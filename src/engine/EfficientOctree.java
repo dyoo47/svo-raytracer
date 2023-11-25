@@ -1,7 +1,6 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
@@ -70,10 +69,7 @@ public class EfficientOctree {
 
   private int createLeafNode(byte val, short normal){
     int pointer = memOffset;
-    //mem[memOffset++] = val;
     buffer.put(memOffset++, val);
-    //adding normal
-    //normal = 897;
     buffer.put(memOffset++, (byte)(normal));
     buffer.put(memOffset++, (byte)(normal >> 8));
     return pointer;
@@ -94,7 +90,7 @@ public class EfficientOctree {
     if(maxLOD <= 9){
       VoxelData vData = new VoxelData(size, size, size);
       for(int i=0; i < 8; i++){
-        threads[i] = new WorldGenThread("wg-" + i, vData, Constants.childOffsets[i] , origin);
+        threads[i] = new WorldGenThread("wg-" + i, vData, Constants.CHILD_OFFSETS[i] , origin);
         threads[i].start();
       }
       int i = 0;
@@ -110,12 +106,10 @@ public class EfficientOctree {
       maxSize = 512;
       constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
     }
-    //constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
-    //vData = null;
+
   }
 
   public byte getValue(int parentNode){
-    //return mem[parentNode];
     return buffer.get(parentNode);
   }
 
@@ -145,7 +139,7 @@ public class EfficientOctree {
         voxelData = new VoxelData(1024, 1024, 1024);
         
         for(int i=0; i < 8; i++){
-          threads[i] = new WorldGenThread("inner wg", voxelData, Constants.childOffsets[i], newOrigin);
+          threads[i] = new WorldGenThread("inner wg", voxelData, Constants.CHILD_OFFSETS[i], newOrigin);
           threads[i].start();
         }
         int i = 0;
@@ -216,7 +210,7 @@ public class EfficientOctree {
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
           //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
           children[n] = createLeafNode(value, packed);
-        }else{ //TODO: Generalized algorithm needs work.
+        }else{ //TODO: Generalized algorithm for voxels of size N>1 needs work.
           int normalX = 0;
           int normalY = 0;
           int normalZ = 0;
@@ -260,11 +254,6 @@ public class EfficientOctree {
   }
   
   public ByteBuffer getByteBuffer(){
-    // int limit = memOffset;
-    // ByteBuffer out = BufferUtils.createByteBuffer(limit);
-    // for(int i=0; i < limit; i++){
-    //   out.put(i, buffer.get(i));
-    // }
     return buffer;
   }
 
@@ -282,7 +271,8 @@ public class EfficientOctree {
       fs.getChannel().close();
       fs.close();
     }catch(IOException e){
-      System.out.println("Error while writing buffer to " + fileName + ": " + e.getMessage());
+      System.out.println("Error while writing buffer to " + fileName + ": ");
+      e.printStackTrace();
     }
   }
 
@@ -290,55 +280,21 @@ public class EfficientOctree {
     try{
       SeekableByteChannel ch = Files.newByteChannel(Paths.get(fileName), StandardOpenOption.READ);
       ByteBuffer header = ByteBuffer.allocate(4);
-      ch.read(header);
-      System.out.println("memOffset: " + header.getInt(0));
 
-      System.out.println("buf position: " + buffer.position());
+      ch.read(header);
       ch.read(buffer);
       buffer.flip();
-      // for(int i=40; i<60; i++){
-      //   System.out.println(buf.get(i));
-      // }
+
       this.memOffset = header.getInt(0);
       ch.close();
-      System.out.println("buf position: " + buffer.position());
-
     }catch(Exception e){
       System.out.println("Error while reading file " + fileName + ": ");
       e.printStackTrace();
     }
   }
 
-  // public void readBufferFromFile(String fileName){
-  //   try{
-  //     File infile = new File(fileName);
-  //     ByteBuffer buf = ByteBuffer.allocate(bufferSize);
-  //     FileInputStream fs = new FileInputStream(infile);
-  //     int b;
-  //     this.memOffset = 0;
-  //     while((b=fs.read())!=-1){
-  //       memOffset++;
-  //       buf.put((byte)b);
-  //     }
-  //     this.buffer = buf;
-  //     this.mem = buf.array();
-  //     fs.close();
-  //   }catch(IOException e){
-  //     System.out.println("Error while reading buffer from " + fileName + ": " + e.getMessage());
-  //   }
-  // }
-
   public void editLeafNodeValue(int pointer, byte val){
     buffer.put(pointer, val);
   }
 
-  //General idea is to use editOctreeSection to 
-
-  public void editOctreeSection(int parentPointer){
-
-  }
-
-  public void recompressOctree(){
-
-  }
 }

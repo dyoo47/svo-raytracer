@@ -93,11 +93,10 @@ public class Main extends Application {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    world = new World(9, 1024, "level1.svo");
+    world = new World(9, 1024, "blobs.svo");
     System.out.println(" done!");
     
 
-    //IntBuffer out = BufferUtils.createIntBuffer(1);
     cam = new Camera();
     cam.setPos(1.5f, 1.5f, 2.0f);
 
@@ -109,7 +108,6 @@ public class Main extends Application {
     glShaderStorageBlockBinding(computeProgram, requestBlockIndex, requestBindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, requestSsbo);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo);
-    // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     ByteBuffer testbuffer = ByteBuffer.allocateDirect(Constants.REQUEST_BUFFER_SIZE_KB * 1000);
     testbuffer.put(0, (byte)11);
     testbuffer.put(1, (byte)12);
@@ -134,13 +132,7 @@ public class Main extends Application {
     glShaderStorageBlockBinding(computeProgram, blockIndex, bindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
-
-    buffer = world.octreeBuffer;
-    // for(int i=40; i<60; i++){
-    //   System.out.println(buffer.get(i));
-    // }
-    System.out.println("mem offset: " + world.eo.memOffset);
-    System.out.println("Remaining: " + buffer.remaining());
+    buffer = world.eo.getByteBuffer();
     
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
@@ -159,7 +151,6 @@ public class Main extends Application {
     glDispatchCompute(numGroupsX, numGroupsY, 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-    //glReadPixels(0, 0, 1, 1, GL_ALPHA, GL_UNSIGNED_BYTE, alpha);
     glBindTexture(GL_TEXTURE_2D, pointerbuffer);
     frameWidth = new int[1];
     frameHeight = new int[1];
@@ -170,10 +161,6 @@ public class Main extends Application {
     int row = 540 * Constants.WINDOW_WIDTH * 4;
     int col = 960 * 4;
     int offset = row + col;
-    // pixel[0] = Byte.toUnsignedInt(pixels.get(0 + offset));
-    // pixel[1] = Byte.toUnsignedInt(pixels.get(1 + offset));
-    // pixel[2] = Byte.toUnsignedInt(pixels.get(2 + offset));
-    // pixel[3] = Byte.toUnsignedInt(pixels.get(3 + offset));
     pixel[0] = pixels.get(0 + offset);
     pixel[1] = pixels.get(1 + offset);
     pixel[2] = pixels.get(2 + offset);
@@ -187,24 +174,14 @@ public class Main extends Application {
     glUniform1i(6, renderMode);
     glUniform1i(9, world.eo.memOffset);
 
-    
-
-    //System.out.println("mem offset: " + world.eo.memOffset);
     if(lastOffset != world.eo.memOffset || dirty){
       dirty = false;
-      System.out.println("updated");
-      for(int i=0; i<20; i++){
-        System.out.println(buffer.get(i));
-      }
       frameNumber = 0;
       lastOffset = world.eo.memOffset;
       buffer = world.eo.getByteBuffer();
       glBindBuffer(GL_SHADER_STORAGE_BUFFER, 7);
       glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
-      //buffer = null;
     }
-    //Write octree buffer size to uniform
-    //glUniform1i(6, octree.memOffset);
 
     //Update camera position
     if(Input.keyDown(Input.MOVE_FORWARD)){
