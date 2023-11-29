@@ -161,6 +161,7 @@ struct retInfo{
 struct castResult {
   uint value;
   uint pointer;
+  uint iter;
   float t;
   vec3 hitPos;
   float scale;
@@ -193,7 +194,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   stack_reset();
   Node parent = extractNode(0);
 
-  int iter = 0;
+  uint iter = 0;
 
   if(abs(dir.x) < EPSILON) dir.x = EPSILON * sign(dir.x);
   if(abs(dir.y) < EPSILON) dir.y = EPSILON * sign(dir.y);
@@ -374,6 +375,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   //TODO: Find a way to move the hitpoint to other side of voxel if we land on the backface.
   res.t = t_min;
   res.value = targetNode.value;
+  res.iter = iter;
   res.normal = norm;
   res.scale = scale_exp2;
   res.hitPos = origin + t_min * dir + norm * scale_exp2;
@@ -385,7 +387,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 }
 
 
-vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer){
+vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer, out uint iter){
   castResult res;
   res.t = 2.0f;
   bool intersect = true;
@@ -397,6 +399,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       bool coneTrace = false;
       if(i != 0) coneTrace = true;
       intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, true);
+      iter = res.iter;
       //if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
         // if(i == 0){
         //   //velocity = vec3(0.0f);
@@ -483,6 +486,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
   }else if(renderMode == 1){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
       pointer = res.pointer;
+      iter = res.iter;
       return res.debugColor;
       //return materials[res.node.value].color;
     }else{
@@ -493,19 +497,23 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
   }else if(renderMode == 2){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
       pointer = res.pointer;
+      iter = res.iter;
       vec3 hitpoint = origin + dir * res.t;
       //intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
       return hitpoint-1;
     }else{
+      iter = res.iter;
       pointer = 0;
       return vec3(0.0f);
     }
   }else if(renderMode == 3){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
       pointer = res.pointer;
+      iter = res.iter;
       return res.normal;
     }
     pointer = 0;
+    iter = res.iter;
   }else if(renderMode == 4){
   }
 }
@@ -531,9 +539,10 @@ void main(void) {
   //for(int i = 0; i < SAMPLES; i++){
   //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
   uint pointer = 0;
+  uint iter = 0;
   int i = frameNumber;
   finalcolor += trace(camPos, normalize(dir), 
-      px.x, px.y, frameNumber, pointer);
+      px.x, px.y, frameNumber, pointer, iter);
   //}
   // }else{
   //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
@@ -573,5 +582,6 @@ void main(void) {
   }
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
   imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
-  //imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
+  // imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
+  // imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
 }

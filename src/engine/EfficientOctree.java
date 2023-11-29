@@ -1,11 +1,14 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class EfficientOctree {
@@ -81,6 +84,103 @@ public class EfficientOctree {
 
   private void setLeafMask(int parentNode, byte leafMask){
     buffer.put(parentNode + 5, leafMask);
+  }
+
+  public void printBufferToFile(String fileName){
+    try{
+
+      PrintWriter pw = new PrintWriter(new File(fileName));
+      for(int i=0; i<memOffset; i++){
+        pw.println(i + ": " + buffer.get(i));
+      }
+      pw.flush();
+      pw.close();
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+  }
+
+  public void constructDebugOctree(){
+    int[] rootPos = {0, -512, 0};
+
+    //construct root
+    createNode((byte) 1);
+
+    // create empty levels up to chunk size
+    int chunkLevel = 2;
+
+    // generate octrees for each chunk
+    ArrayList<Chunk> chunks = new ArrayList<Chunk>();
+    fillEmptyChildren(0, chunkLevel, rootPos, chunks);
+    int ind = 0;
+    for(Chunk chunk : chunks){
+      ind++;
+      // setLeafMask(chunk.pointer, (byte) 255);
+      // for(int i=0; i < 8; i++){
+      //   int childPointer = 0;
+      //   if(i == 0 || i == 7) childPointer = createLeafNode((byte) 0, (short) 0);
+      //   else childPointer = createLeafNode((byte) 1, (short) 0);
+      //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
+      // }
+      System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1] 
+        + ", " + chunk.origin[2] + "]: " + chunk.pointer);
+      System.out.println(ind + "/" + chunks.size());
+
+      VoxelData voxelData = new VoxelData(1024, 1024, 1024);
+        
+      for(int i=0; i < 8; i++){
+        threads[i] = new WorldGenThread("inner wg", voxelData, Constants.CHILD_OFFSETS[i], chunk.origin);
+        threads[i].start();
+      }
+      int i = 0;
+      while(i < 8){
+        i = 0;
+        for(WorldGenThread t : threads){
+          if(!t.thread.isAlive()) i++;
+        }
+      }
+      int[] pos = {0, 0, 0};
+      // System.out.println(voxelData.get(0, 0, 0));
+      // System.out.println(voxelData.get(1023, 0, 0));
+      // System.out.println(voxelData.get(0, 0, 1023));
+      // System.out.println(voxelData.get(1023, 0, 1023));
+      constructOctree(512, 0, pos, chunk.pointer, voxelData, false);
+      System.out.println("memoffset: " + memOffset);
+      System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
+    }
+  }
+
+  class Chunk {
+    int[] origin;
+    int pointer;
+    public Chunk(int[] origin, int pointer){
+      this.origin = origin;
+      this.pointer = pointer;
+    }
+  }
+
+  private void fillEmptyChildren(int parentPointer, int levels, int[] pPos, List<Chunk> chunks){
+    if(levels == 0){
+      chunks.add(new Chunk(pPos, parentPointer));
+      return;
+    }
+
+    final int chunkSize = 1024;
+    int cSize = chunkSize << (levels - 1);
+    int[][] cPos = new int[8][3];
+    for(int n = 0; n < 8; n++){
+      cPos[n][0] = pPos[0] + childOffsets[n][0] * cSize;
+      cPos[n][1] = pPos[1] + childOffsets[n][1] * cSize;
+      cPos[n][2] = pPos[2] + childOffsets[n][2] * cSize;
+    }
+    int[] children = new int[8];
+    for(int i=0; i<8; i++){
+      children[i] = createNode((byte) 1);
+    }
+    for(int i=0; i < 8; i++){
+      fillEmptyChildren(children[i], levels - 1, cPos[i], chunks);
+    }
+    setChildPointer(parentPointer, children[0]);
   }
 
   public void constructOctree(int maxLOD, int rootPointer){

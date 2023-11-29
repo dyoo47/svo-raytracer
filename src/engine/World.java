@@ -15,7 +15,7 @@ public class World {
 
 public World(int maxLOD, int chunkSize, String fileName){
     init(maxLOD, chunkSize);
-    eo = new EfficientOctree(100000, size, origin);
+    eo = new EfficientOctree(10000000, size, origin);
     eo.readBufferFromFile(fileName);
   }
 
@@ -27,7 +27,7 @@ public World(int maxLOD, int chunkSize, String fileName){
   }
 
   private void generateOctreeData(){
-    eo = new EfficientOctree(100000, size, origin);
+    eo = new EfficientOctree(1000000, size, origin);
     OctreeThread ot = new OctreeThread("ot", eo, maxLOD);
     System.out.println("started octree thread");
     ot.start();

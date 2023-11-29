@@ -13,5 +13,19 @@ public class ByteCacheTest {
     assertEquals((byte)2, byteCache.getBuffer().get(2));
     assertEquals((byte)2, byteCache.getFirst());
   }
+
+  @Test
+  public void eoTest(){
+    EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
+    eo.constructDebugOctree();
+    eo.writeBufferToFile("debug.svo");
+    // eo.printBufferToFile("debug.txt");
+  }
+
+  @Test
+  public void shiftTest(){
+    int cSize = 512 << 3;
+    System.out.println(cSize);
+  }
   
 }

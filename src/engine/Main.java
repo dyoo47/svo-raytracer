@@ -1,7 +1,5 @@
-import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL43C.*;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
 
@@ -93,7 +91,9 @@ public class Main extends Application {
 
     //--INITIALIZE
     System.out.print("creating voxel data...");
-    world = new World(9, 1024, "blobs.svo");
+    // world = new World(9, 1024, "blobs.svo");
+    // world = new World(10, 2048);
+    world = new World(10, 2048, "debug.svo");
     System.out.println(" done!");
     
 
@@ -166,6 +166,7 @@ public class Main extends Application {
     pixel[2] = pixels.get(2 + offset);
     pixel[3] = pixels.get(3 + offset);
     voxelPointer = pixels.getInt(offset);
+
     glBindTexture(GL_TEXTURE_2D, framebuffer);
 
     //Update frame
@@ -284,7 +285,7 @@ public class Main extends Application {
     ImGui.text("Frame Time: " + frameTime + " ms");
     ImGui.text("Texture Width: " + frameWidth[0]);
     ImGui.text("Texture Height: " + frameHeight[0]);
-    ImGui.text("Voxel Pointer: " + pixel[0] + " " + pixel[1] + " " + pixel[2] + " " + pixel[3] + " -> " + voxelPointer);
+    ImGui.text("Voxel Pointer: " + voxelPointer);
     // ImGui.text("Request Buffer [0]: " + Integer.toString(octreeStreamer.requestBuffer.get(0)));
     // ImGui.text("Request Buffer [1]: " + Integer.toString(octreeStreamer.requestBuffer.get(1)));
     // ImGui.text("Request Buffer [2]: " + Integer.toString(octreeStreamer.requestBuffer.get(2)));
