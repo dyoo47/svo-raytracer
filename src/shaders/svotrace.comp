@@ -581,7 +581,7 @@ void main(void) {
     }
   }
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
-  imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
-  // imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
+  // imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
+  imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
   // imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
 }

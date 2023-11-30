@@ -107,14 +107,16 @@ public class EfficientOctree {
     createNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 2;
+    int chunkLevel = 1;
 
     // generate octrees for each chunk
     ArrayList<Chunk> chunks = new ArrayList<Chunk>();
     fillEmptyChildren(0, chunkLevel, rootPos, chunks);
     int ind = 0;
+    int half = size/2;
+    int[] playerPos = {rootPos[0] + half, rootPos[1] + half, rootPos[2] + half};
+    System.out.println("Simulated Player Pos: " + playerPos[0] + ", " + playerPos[1] + ", " + playerPos[2]);
     for(Chunk chunk : chunks){
-      ind++;
       // setLeafMask(chunk.pointer, (byte) 255);
       // for(int i=0; i < 8; i++){
       //   int childPointer = 0;
@@ -122,8 +124,25 @@ public class EfficientOctree {
       //   else childPointer = createLeafNode((byte) 1, (short) 0);
       //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
       // }
+      ind++;
+
+      int maxLOD = 9;
+      int dist = Math.max(
+        Math.abs(playerPos[0] - chunk.origin[0]), Math.max(Math.abs(playerPos[1] - chunk.origin[1]),
+        Math.abs(playerPos[2] - chunk.origin[2])));
+      
+      if(dist >= 2048){
+        maxLOD = 8;
+      }
+      if(dist >= 3072){
+        maxLOD = 6;
+      }
+      if(dist >= 4096){
+        maxLOD = 4;
+      }
+
       System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1] 
-        + ", " + chunk.origin[2] + "]: " + chunk.pointer);
+        + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist);
       System.out.println(ind + "/" + chunks.size());
 
       VoxelData voxelData = new VoxelData(1024, 1024, 1024);
@@ -139,12 +158,8 @@ public class EfficientOctree {
           if(!t.thread.isAlive()) i++;
         }
       }
-      int[] pos = {0, 0, 0};
-      // System.out.println(voxelData.get(0, 0, 0));
-      // System.out.println(voxelData.get(1023, 0, 0));
-      // System.out.println(voxelData.get(0, 0, 1023));
-      // System.out.println(voxelData.get(1023, 0, 1023));
-      constructOctree(512, 0, pos, chunk.pointer, voxelData, false);
+      int[] startPos = {0, 0, 0};
+      constructOctree(512, 0, maxLOD, startPos, chunk.pointer, voxelData, false);
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
@@ -200,11 +215,11 @@ public class EfficientOctree {
           if(!t.thread.isAlive()) i++;
         }
       }
-      constructOctree(maxSize, 0, rootPos, rootPointer, vData, false);
+      constructOctree(maxSize, 0, -1, rootPos, rootPointer, vData, false);
     }else{
       splitLOD = maxLOD - 9;
       maxSize = 512;
-      constructOctree(maxSize, 0, rootPos, rootPointer, null, false);
+      constructOctree(maxSize, 0, -1, rootPos, rootPointer, null, false);
     }
 
   }
@@ -213,10 +228,10 @@ public class EfficientOctree {
     return buffer.get(parentNode);
   }
 
-  private void constructOctree(int maxSize, int curLOD, int[] pPos, int parentPointer, VoxelData voxelData, boolean split){
+  private void constructOctree(int maxSize, int curLOD, int maxLOD, int[] pPos, int parentPointer, VoxelData voxelData, boolean split){
 
     int cSize = maxSize >> curLOD;
-    if(cSize == 0) return;
+    if(cSize == 0 || curLOD == maxLOD) return;
 
     int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
     int[][] cPos = new int[8][3];
@@ -249,7 +264,7 @@ public class EfficientOctree {
             if(!t.thread.isAlive()) i++;
           }
         }
-        constructOctree(maxSize, 0, pPos, parentPointer, voxelData, true);
+        constructOctree(maxSize, 0, maxLOD, pPos, parentPointer, voxelData, true);
         return;
       }else{
         for(int i = 0; i < 8; i++){
@@ -257,7 +272,7 @@ public class EfficientOctree {
         }
         setChildPointer(parentPointer, children[0]);
         for(int i = 0; i < 8; i++){
-          constructOctree(maxSize, curLOD + 1, cPos[i], children[i], voxelData, split);
+          constructOctree(maxSize, curLOD + 1, maxLOD, cPos[i], children[i], voxelData, split);
         }
         return;
       }
@@ -268,6 +283,8 @@ public class EfficientOctree {
       byte value = first;
       boolean leaf = true;
       for(int i = cPos[n][0]; i < cPos[n][0] + cSize; i++){
+        //if next LOD is maxLOD, then we can assume all children are leaves.
+        if(curLOD + 1 == maxLOD) break;
         for(int j = cPos[n][1]; j < cPos[n][1] + cSize; j++){
           for(int k = cPos[n][2]; k < cPos[n][2] + cSize; k++){
             byte sample = voxelData.get(i, j, k);
@@ -348,7 +365,7 @@ public class EfficientOctree {
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
       if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
-        constructOctree(maxSize, curLOD + 1, cPos[n], children[n], voxelData, split);
+        constructOctree(maxSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData, split);
       }
     }
   }
