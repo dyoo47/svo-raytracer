@@ -16,7 +16,7 @@ public class ByteCacheTest {
 
   @Test
   public void eoTest(){
-    EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
+    EfficientOctree eo = new EfficientOctree(1000000, 4096, Constants.WORLD_OFFSET);
     eo.constructDebugOctree();
     eo.writeBufferToFile("debug.svo");
     // eo.printBufferToFile("debug.txt");

@@ -12,14 +12,21 @@ public class VoxelData {
         this.width = width;
         this.height = height;
         this.depth = depth;
-        for(int i=0; i < width; i++){
-            for(int j=0; j < height; j++){
-                for(int k=0; k < depth; k++){
-                    set(i, j, k, (byte) 0);//sampleSphere(i, j, k);
-                    // sampleMod(i, j, k);
-                }
-            }
-        }
+        // for(int i=0; i < width; i++){
+        //     for(int j=0; j < height; j++){
+        //         for(int k=0; k < depth; k++){
+        //             set(i, j, k, (byte) 0);//sampleSphere(i, j, k);
+        //             // sampleMod(i, j, k);
+        //         }
+        //     }
+        // }
+    }
+
+    public VoxelData(){
+        width = 1024;
+        height = 1024;
+        depth = 1024;
+        
     }
 
     // public byte get(int x, int y, int z){

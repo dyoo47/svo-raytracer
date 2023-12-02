@@ -8,9 +8,9 @@ import imgui.ImGui;
 public class Main extends Application {
 
   private static int frameNumber = 1;
-  private static final String QUAD_PROGRAM_VS_SOURCE = Shader.readFromFile("src/shaders/quad.vert");
-  private static final String QUAD_PROGRAM_FS_SOURCE = Shader.readFromFile("src/shaders/quad.frag");
-  private static final String COMPUTE_SHADER_SOURCE = Shader.readFromFile("src/shaders/svotrace.comp");
+  private static final String QUAD_PROGRAM_VS_SOURCE = Renderer.readFromFile("src/shaders/quad.vert");
+  private static final String QUAD_PROGRAM_FS_SOURCE = Renderer.readFromFile("src/shaders/quad.frag");
+  private static final String COMPUTE_SHADER_SOURCE = Renderer.readFromFile("src/shaders/svotrace.comp");
 
   int computeProgram;
   int computeProgramShader;
@@ -41,6 +41,7 @@ public class Main extends Application {
 
     pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);
     pixel = new byte[4];
+
 
     // Create VAO
     glBindVertexArray(glGenVertexArrays());

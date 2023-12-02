@@ -101,13 +101,13 @@ public class EfficientOctree {
   }
 
   public void constructDebugOctree(){
-    int[] rootPos = {0, -512, 0};
+    int[] rootPos = {0, -2048, 0};
 
     //construct root
     createNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 1;
+    int chunkLevel = 2;
 
     // generate octrees for each chunk
     ArrayList<Chunk> chunks = new ArrayList<Chunk>();
@@ -126,11 +126,12 @@ public class EfficientOctree {
       // }
       ind++;
 
-      int maxLOD = 9;
       int dist = Math.max(
         Math.abs(playerPos[0] - chunk.origin[0]), Math.max(Math.abs(playerPos[1] - chunk.origin[1]),
         Math.abs(playerPos[2] - chunk.origin[2])));
       
+      int maxLOD = 9;
+
       if(dist >= 2048){
         maxLOD = 8;
       }
@@ -138,12 +139,14 @@ public class EfficientOctree {
         maxLOD = 6;
       }
       if(dist >= 4096){
-        maxLOD = 4;
+        maxLOD = 5;
       }
 
       System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1] 
-        + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist);
+        + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist + ":" + maxLOD);
       System.out.println(ind + "/" + chunks.size());
+
+      double startTime = System.currentTimeMillis();
 
       VoxelData voxelData = new VoxelData(1024, 1024, 1024);
         
@@ -158,8 +161,13 @@ public class EfficientOctree {
           if(!t.thread.isAlive()) i++;
         }
       }
+      double endTime = System.currentTimeMillis() - startTime;
+      System.out.println("Voxel generation elapsed time: " + endTime / 1000 + "s");
+      startTime = System.currentTimeMillis();
       int[] startPos = {0, 0, 0};
       constructOctree(512, 0, maxLOD, startPos, chunk.pointer, voxelData, false);
+      endTime = System.currentTimeMillis() - startTime;
+      System.out.println("Octree generation elapsed time: " + endTime / 1000 + "s");
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
@@ -226,6 +234,10 @@ public class EfficientOctree {
 
   public byte getValue(int parentNode){
     return buffer.get(parentNode);
+  }
+
+  public void setValue(int parentNode, byte value){
+    buffer.put(parentNode, value);
   }
 
   private void constructOctree(int maxSize, int curLOD, int maxLOD, int[] pPos, int parentPointer, VoxelData voxelData, boolean split){
