@@ -101,13 +101,13 @@ public class EfficientOctree {
   }
 
   public void constructDebugOctree(){
-    int[] rootPos = {0, -2048, 0};
+    int[] rootPos = {0, -1024, 0};
 
     //construct root
     createNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 2;
+    int chunkLevel = 1;
 
     // generate octrees for each chunk
     ArrayList<Chunk> chunks = new ArrayList<Chunk>();

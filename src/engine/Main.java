@@ -28,6 +28,7 @@ public class Main extends Application {
 
   int framebuffer;
   int pointerbuffer;
+  int voxelTexture;
 
   ByteBuffer pixels;
   int[] frameWidth;
@@ -64,6 +65,7 @@ public class Main extends Application {
     glBindImageTexture(1, pointerbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
 
 
+
     // Create program to render framebuffer texture as fullscreen quad
     System.out.print("creating fullscreen quad...");
     quadProgram = glCreateProgram();
@@ -80,7 +82,6 @@ public class Main extends Application {
 
     // Set up compute shaders
     traceShader = renderer.addShader("svotrace", "src/shaders/svotrace.comp");
-    genShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
 
 
     // Determine number of work groups to dispatch
