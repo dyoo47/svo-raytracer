@@ -10,11 +10,12 @@ public class Main extends Application {
   private static int frameNumber = 1;
   private static final String QUAD_PROGRAM_VS_SOURCE = Renderer.readFromFile("src/shaders/quad.vert");
   private static final String QUAD_PROGRAM_FS_SOURCE = Renderer.readFromFile("src/shaders/quad.frag");
-  private static final String COMPUTE_SHADER_SOURCE = Renderer.readFromFile("src/shaders/svotrace.comp");
 
-  int computeProgram;
-  int computeProgramShader;
+  Renderer renderer;
+
   int quadProgram;
+  Renderer.Shader traceShader;
+  Renderer.Shader genShader;
 
   int numGroupsX, numGroupsY;
   int renderMode, lastOffset;
@@ -38,6 +39,8 @@ public class Main extends Application {
 
   @Override
   protected void preRun() {
+
+    renderer = Renderer.getInstance();
 
     pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);
     pixel = new byte[4];
@@ -75,15 +78,11 @@ public class Main extends Application {
     glLinkProgram(quadProgram);
     System.out.println(" done!");
 
-    // Create ray tracing compute shader
-    System.out.print("setting up ray tracing compute shader...");
-    computeProgram = glCreateProgram();
-    computeProgramShader = glCreateShader(GL_COMPUTE_SHADER);
-    glShaderSource(computeProgramShader, COMPUTE_SHADER_SOURCE);
-    glCompileShader(computeProgramShader);
-    glAttachShader(computeProgram, computeProgramShader);
-    glLinkProgram(computeProgram);
-    System.out.println(" done!");
+    // Set up compute shaders
+    traceShader = renderer.addShader("svotrace", "src/shaders/svotrace.comp");
+    genShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
+
+
     // Determine number of work groups to dispatch
     numGroupsX = (int) Math.ceil((double)Constants.WINDOW_WIDTH / 8);
     numGroupsY = (int) Math.ceil((double)Constants.WINDOW_HEIGHT / 8);
@@ -102,13 +101,6 @@ public class Main extends Application {
     cam.setPos(1.5f, 1.5f, 2.0f);
 
     //Create memory cache
-    int requestSsbo = 0;
-    requestSsbo = glGenBuffers();
-    int requestBindIndex = 10;
-    int requestBlockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "requestStorage");
-    glShaderStorageBlockBinding(computeProgram, requestBlockIndex, requestBindIndex);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, requestSsbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo);
     ByteBuffer testbuffer = ByteBuffer.allocateDirect(Constants.REQUEST_BUFFER_SIZE_KB * 1000);
     testbuffer.put(0, (byte)11);
     testbuffer.put(1, (byte)12);
@@ -117,40 +109,23 @@ public class Main extends Application {
     //System.out.println(testbuffer.get(0));
     //System.out.println(testbuffer.get(1));
 
-    // glBindBufferRange(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo, 0, 3);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, testbuffer, GL_DYNAMIC_DRAW);
-    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, requestBindIndex, requestSsbo);
+    renderer.addSSBO("requestStorage", traceShader, 10, testbuffer);
 
     octreeStreamer = new OctreeStreamer();
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); //Get buffer and set buffer must match in size.
     //octreeStreamer.printBuffer(10);
     
-
-    int ssbo = 0;
-    ssbo = glGenBuffers();
-    int bindIndex = 7;
-    int blockIndex = glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "shaderStorage");
-    glShaderStorageBlockBinding(computeProgram, blockIndex, bindIndex);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-
-    buffer = world.eo.getByteBuffer();
+    renderer.addSSBO("shaderStorage", traceShader, 7, world.eo.getByteBuffer());
     
-    glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo);
-    //glGetBufferParameteriv(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, out);
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-    //glfwMaximizeWindow(window);
     renderMode = 0;
     lastOffset = 0;
   }
 
   @Override
   public void updateEarly() {
-    glUseProgram(computeProgram);
-    glDispatchCompute(numGroupsX, numGroupsY, 1);
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    renderer.dispatchCompute(traceShader, numGroupsX, numGroupsY, 1);
 
     glBindTexture(GL_TEXTURE_2D, pointerbuffer);
     frameWidth = new int[1];
@@ -180,9 +155,7 @@ public class Main extends Application {
       dirty = false;
       frameNumber = 0;
       lastOffset = world.eo.memOffset;
-      buffer = world.eo.getByteBuffer();
-      glBindBuffer(GL_SHADER_STORAGE_BUFFER, 7);
-      glBufferData(GL_SHADER_STORAGE_BUFFER, buffer, GL_DYNAMIC_DRAW);
+      renderer.updateSSBO(7, world.eo.getByteBuffer());
     }
 
     //Update camera position
