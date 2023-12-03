@@ -125,7 +125,7 @@ public class Main extends Application {
 
   @Override
   public void updateEarly() {
-
+    renderer.useProgram(traceShader);
     renderer.dispatchCompute(traceShader, numGroupsX, numGroupsY, 1);
 
     glBindTexture(GL_TEXTURE_2D, pointerbuffer);

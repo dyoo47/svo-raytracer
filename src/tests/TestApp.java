@@ -20,23 +20,20 @@ public class TestApp extends Application {
     int texture = renderer.add3DTexture(3, GL_R8UI, width, height, depth);
     System.out.println("Added 3d texture");
 
-    ByteBuffer buffer = ByteBuffer.allocateDirect(width * depth * height);
-
     Renderer.Shader shader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
     System.out.println("Added shader");
 
-    renderer.printGLErrors();
-    renderer.dispatchCompute(shader, width/8, height/8, depth/8);
-    System.out.println("Dispatched compute");
+    // renderer.printGLErrors();
+    // renderer.dispatchCompute(shader, width/groupSize, height/groupSize, depth/groupSize);
+    // System.out.println("Dispatched compute");
 
-    renderer.printGLErrors();
-    renderer.dispatchCompute(shader, width/8, height/8, depth/8);
-    renderer.get3DTextureData(texture, buffer);
-    System.out.println("Retrieved 3d texture data");
+    // renderer.printGLErrors();
+    // renderer.get3DTextureData(texture, buffer);
+    // System.out.println("Retrieved 3d texture data");
 
-    for(int i=0; i < 10; i++){
-      System.out.println(buffer.get(i));
-    }
+    EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
+    eo.constructDebugOctree(shader, texture);
+    eo.writeBufferToFile("debug.svo");
   }
 
   @Override

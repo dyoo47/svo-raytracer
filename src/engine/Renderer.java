@@ -49,6 +49,10 @@ public class Renderer {
     return shader;
   }
 
+  public void setUniformInteger(int location, int value){
+    glUniform1i(location, value);
+  }
+
   public int add3DTexture(int unit, int internalFormat, int width, int height, int depth){
     int texture = glGenTextures();
     glBindTexture(GL_TEXTURE_3D, texture);
@@ -60,11 +64,16 @@ public class Renderer {
 
   public void get3DTextureData(int texture, ByteBuffer buffer){
     glBindTexture(GL_TEXTURE_3D, texture);
+    printGLErrors();
     glGetTexImage(GL_TEXTURE_3D, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
+    printGLErrors();
+  }
+
+  public void useProgram(Shader shader){
+    glUseProgram(shader.computeProgram);
   }
 
   public void dispatchCompute(Shader shader, int numGroupsX, int numGroupsY, int numGroupsZ){
-    glUseProgram(shader.computeProgram);
     glDispatchCompute(numGroupsX, numGroupsY, numGroupsZ);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
