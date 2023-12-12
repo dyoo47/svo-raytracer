@@ -18,7 +18,7 @@ public class OctreeThread implements Runnable {
     }
     @Override
     public void run() {
-        octree.constructOctree(maxLOD, 0);
+        //octree.constructOctree(maxLOD, 0);
     }
     
 }

@@ -1,9 +1,6 @@
 import static org.junit.Assert.assertEquals;
 
-import java.nio.ByteBuffer;
-
 import org.junit.Test;
-import org.lwjgl.BufferUtils;
 
 
 public class ByteCacheTest {

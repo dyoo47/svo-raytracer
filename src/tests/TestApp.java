@@ -22,7 +22,6 @@ public class TestApp extends Application {
     System.out.println("Added 3d texture");
 
     Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
-    Renderer.Shader samplerShader = renderer.addShader("voxelsampler", "src/shaders/voxelsampler.comp");
     System.out.println("Added shaders");
 
     //start test code
@@ -42,26 +41,8 @@ public class TestApp extends Application {
     renderer.printGLErrors();
     renderer.get3DTextureData(texture, voxelData);
 
-
-
-    ByteBuffer leafBuffer = BufferUtils.createByteBuffer(8);
-    int sampleGroupSize = 2;
-    byte first = 19;
-    System.out.println("first: " + first);
-    renderer.useProgram(samplerShader);
-    renderer.bind3DTexture(texture);
-    renderer.addSSBO("leafStorage", samplerShader, 4, leafBuffer);
-    renderer.setUniformInteger(0, first);
-    renderer.dispatchCompute(samplerShader, sampleGroupSize, sampleGroupSize, sampleGroupSize);
-    renderer.getSSBO(leafBuffer);
-    System.out.println("leafBuffer: " + leafBuffer.getInt(0));
-
-    // byte value = leafBuffer.get(4); //TODO: test this alone
-    // System.out.println("value: " + value);
-    //end test code
-
     EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
-    eo.constructDebugOctree(chunkGenShader, samplerShader, texture);
+    eo.constructDebugOctree(chunkGenShader, texture);
     eo.writeBufferToFile("debug.svo");
   }
 
