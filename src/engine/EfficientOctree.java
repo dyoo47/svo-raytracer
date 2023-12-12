@@ -24,10 +24,15 @@ public class EfficientOctree {
   int[] origin;
   int size;
   int splitLOD;
+  double leafTime;
+  double normalTime;
+  double outerTime;
+  ByteBuffer leafBuffer = BufferUtils.createByteBuffer(8);
 
   static final int NODE_SIZE = 6;
   static final int LEAF_SIZE = 3;
   static final int CHUNK_SIZE = 1024;
+  static final int Z_WIDTH = 1048576;
   static byte[][] childOffsets = {
     {0, 0, 0},
     {1, 0, 0},
@@ -105,7 +110,7 @@ public class EfficientOctree {
     }
   }
 
-  public void constructDebugOctree(Renderer.Shader shader, int texture){
+  public void constructDebugOctree(Renderer.Shader chunkGenShader, Renderer.Shader samplerShader, int texture){
     int[] rootPos = {0, -1024, 0};
 
     //construct root
@@ -169,31 +174,43 @@ public class EfficientOctree {
 
       int groupSize = CHUNK_SIZE/8;
 
-      renderer.useProgram(shader);
+      renderer.useProgram(chunkGenShader);
 
       renderer.setUniformInteger(1, chunk.origin[0]);
       renderer.setUniformInteger(2, chunk.origin[1]);
       renderer.setUniformInteger(3, chunk.origin[2]);
 
       renderer.printGLErrors();
-      renderer.dispatchCompute(shader, groupSize, groupSize, groupSize);
-      System.out.println("Dispatched compute");
+      renderer.dispatchCompute(chunkGenShader, groupSize, groupSize, groupSize);
+      // System.out.println("Dispatched compute");
 
-      ByteBuffer voxelData = BufferUtils.createByteBuffer(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
-      System.out.println("Allocated buffer");
+      ByteBuffer voxelBuffer = BufferUtils.createByteBuffer(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
+      
+      // System.out.println("Allocated buffer");
 
       renderer.printGLErrors();
-      renderer.get3DTextureData(texture, voxelData);
-      System.out.println("Retrieved 3d texture data");
+      renderer.get3DTextureData(texture, voxelBuffer);
+      // byte[] voxelData = new byte[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+      // voxelBuffer.put(voxelData);
+      // System.out.println("Retrieved 3d texture data");
 
       double endTime = System.currentTimeMillis() - startTime;
       System.out.println("Voxel generation elapsed time: " + endTime / 1000 + "s");
 
       startTime = System.currentTimeMillis();
       int[] startPos = {0, 0, 0};
-      constructOctree(512, 0, maxLOD, startPos, chunk.pointer, voxelData);
+      leafTime = 0;
+      normalTime = 0;
+      // renderer.useProgram(samplerShader);
+      // renderer.bind3DTexture(texture);
+      // renderer.addSSBO("leafStorage", samplerShader, 4, leafBuffer);
+      // constructOctreeGPU(512, 0, maxLOD, startPos, chunk.pointer, voxelData, samplerShader);
+      constructOctree(512, 0, maxLOD, startPos, chunk.pointer, voxelBuffer);
+      // constructOctree(512, 0, maxLOD, startPos, chunk.pointer, voxelData, false);
       endTime = System.currentTimeMillis() - startTime;
       System.out.println("Octree generation elapsed time: " + endTime / 1000 + "s");
+      //System.out.println("Leaf time: " + leafTime / 1000 + "s");
+      //System.out.println("Normal time: " + normalTime / 1000 + "s");
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
@@ -267,10 +284,13 @@ public class EfficientOctree {
   }
 
   private byte getVoxel(ByteBuffer voxelData, int x, int y, int z){
-    return voxelData.get(x + y * 1024 + z * 1024 * 1024);
+    // int index = x + y * CHUNK_SIZE + z * Z_WIDTH;
+    // return voxelData.get(index);
+    // y << 10 -> y * 1024, z << 20 -> z * 1024 * 1024
+    return voxelData.get(x | (y << 10) | (z << 20));
   }
 
-  private void constructOctree(int maxSize, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
+  private void constructOctreeGPU(int maxSize, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData, Renderer.Shader samplerShader){
 
     int cSize = maxSize >> curLOD;
     if(cSize == 0 || curLOD == maxLOD) return;
@@ -287,6 +307,7 @@ public class EfficientOctree {
       byte first = getVoxel(voxelData, cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
       boolean leaf = true;
+      double startTime = System.currentTimeMillis();
       for(int i = cPos[n][0]; i < cPos[n][0] + cSize; i++){
         //if next LOD is maxLOD, then we can assume all children are leaves.
         if(curLOD + 1 == maxLOD) break;
@@ -307,6 +328,26 @@ public class EfficientOctree {
         }
         if(!leaf) break;
       }
+      // if(curLOD + 1 != maxLOD){
+      //   Renderer renderer = Renderer.getInstance();
+      //   int groupSize = cSize / 2;
+      //   // System.out.println(cSize/2);
+      //   // if(groupSize < 1) System.out.println("something went wrong...");
+      //   if(groupSize < 1) groupSize = 1;
+      //   // renderer.updateSSBO(4, leafBuffer);
+      //   renderer.setUniformInteger(5, first);
+      //   renderer.setUniformInteger(6, cPos[n][0]);
+      //   renderer.setUniformInteger(7, cPos[n][1]);
+      //   renderer.setUniformInteger(8, cPos[n][2]);
+      //   renderer.dispatchCompute(samplerShader, groupSize, groupSize, groupSize);
+      //   renderer.getSSBO(leafBuffer);
+      //   if(leafBuffer.getInt(0) == 1){
+      //     leaf = false;
+      //   }
+      //   value = leafBuffer.get(4); // set random nonzero material in voxel texture
+      // }
+      leafTime += System.currentTimeMillis() - startTime;
+      startTime = System.currentTimeMillis();
       if(leaf) {
         if(cSize == 1){
           int normalX = 0;
@@ -319,6 +360,112 @@ public class EfficientOctree {
               for(int k = cPos[n][2]-1; k <= cPos[n][2]+1; k++){
                 if(k < 0 || k >= CHUNK_SIZE) continue;
                 if(getVoxel(voxelData, i, j, k) == 0){
+                  normalX += i - cPos[n][0];
+                  normalY += j - cPos[n][1];
+                  normalZ += k - cPos[n][2];
+                }
+              }
+            }
+          }
+          normalX = normalX / 2 + 5;
+          normalY = normalY / 2 + 5;
+          normalZ = normalZ / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          children[n] = createLeafNode(value, packed);
+        }else{ //TODO: Generalized algorithm for voxels of size N>1 needs work.
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][0]-1; i <= cPos[n][0]+cSize; i++){
+            if(i < 0 || i >= CHUNK_SIZE || i >= cPos[n][0] && i <= cPos[n][0]+cSize-1) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize; j++){
+              if(j < 0 || j >= CHUNK_SIZE || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
+              for(int k = cPos[n][2]-1; k <= cPos[n][2]+cSize; k++){
+                if(k < 0 || k >= CHUNK_SIZE || k >= cPos[n][2] && k <= cPos[n][2]+cSize-1) continue;
+                if(getVoxel(voxelData, i, j, k) == 0){
+                  normalX += Math.copySign(1, i-cPos[n][0]);
+                  normalY += Math.copySign(1, j-cPos[n][1]);
+                  normalZ += Math.copySign(1, k-cPos[n][2]);
+                }
+              }
+            }
+          }
+          float maxParam = 2*(cSize+2)*(cSize+2); //calculating max value of a single normal parameter
+          float fnx = normalX / maxParam;
+          float fny = normalY / maxParam;
+          float fnz = normalZ / maxParam;
+          float fnmax = Math.max(Math.abs(fnx), Math.max(Math.abs(fny), Math.abs(fnz)));
+          //instead of dividing by fnmax we can multiply fn by a constant then subtract so fnmax = 1.
+          normalX = (int)(fnx/fnmax * 9) / 2 + 5;
+          normalY = (int)(fny/fnmax * 9) / 2 + 5;
+          normalZ = (int)(fnz/fnmax * 9) / 2 + 5;
+          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+          children[n] = createLeafNode(value, packed);
+        }
+      }
+      else children[n] = createNode(value);
+      if(leaf) leafMask |= (0x01 << n);
+      normalTime += System.currentTimeMillis() - startTime;
+    }
+    setChildPointer(parentPointer, children[0]);
+    setLeafMask(parentPointer, leafMask);
+    for(int n = 0; n < 8; n++){
+      if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
+        constructOctreeGPU(maxSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData, samplerShader);
+      }
+    }
+  }
+
+  private void constructOctree(int maxSize, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
+
+    int cSize = maxSize >> curLOD;
+    if(cSize == 0 || curLOD == maxLOD) return;
+
+    int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
+    int[][] cPos = new int[8][3];
+    for(int n = 0; n < 8; n++){
+      cPos[n][0] = pPos[0] + childOffsets[n][0] * cSize;
+      cPos[n][1] = pPos[1] + childOffsets[n][1] * cSize;
+      cPos[n][2] = pPos[2] + childOffsets[n][2] * cSize;
+    }
+    byte leafMask = 0;
+    for(int n = 0; n < 8; n++){
+      byte first = getVoxel(voxelData, cPos[n][0], cPos[n][1], cPos[n][2]);
+      byte value = first;
+      boolean leaf = true;
+      //if next LOD is maxLOD, then we can assume all children are leaves.
+      if(curLOD + 1 != maxLOD){
+        for(int i = cPos[n][2]; i < cPos[n][2] + cSize; i++){
+          for(int j = cPos[n][1]; j < cPos[n][1] + cSize; j++){
+            for(int k = cPos[n][0]; k < cPos[n][0] + cSize; k++){
+              byte sample = getVoxel(voxelData, k, j, i);
+              if(sample != 0){
+                value = sample;
+              }
+              if(sample != first){
+                if(first == 0) first = sample;
+                value = first;
+                leaf = false;
+                break;
+              }
+            }
+            if(!leaf) break;
+          }
+          if(!leaf) break;
+        }
+      }
+      if(leaf) {
+        if(cSize == 1){
+          int normalX = 0;
+          int normalY = 0;
+          int normalZ = 0;
+          for(int i = cPos[n][2]-1; i <= cPos[n][2]+1; i++){
+            if(i < 0 || i >= CHUNK_SIZE) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+1; j++){
+              if(j < 0 || j >= CHUNK_SIZE) continue;
+              for(int k = cPos[n][0]-1; k <= cPos[n][0]+1; k++){
+                if(k < 0 || k >= CHUNK_SIZE) continue;
+                if(getVoxel(voxelData, k, j, i) == 0){
                   normalX += i - cPos[n][0];
                   normalY += j - cPos[n][1];
                   normalZ += k - cPos[n][2];
@@ -435,6 +582,7 @@ public class EfficientOctree {
         for(int j = cPos[n][1]; j < cPos[n][1] + cSize; j++){
           for(int k = cPos[n][2]; k < cPos[n][2] + cSize; k++){
             byte sample = voxelData.get(i, j, k);
+            // int test = i + j * 1024 + k * 1024 * 1024;
             if(sample != 0){
               value = sample;
             }

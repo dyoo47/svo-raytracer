@@ -1,6 +1,9 @@
 import static org.junit.Assert.assertEquals;
 
+import java.nio.ByteBuffer;
+
 import org.junit.Test;
+import org.lwjgl.BufferUtils;
 
 
 public class ByteCacheTest {
@@ -19,7 +22,7 @@ public class ByteCacheTest {
   @Test
   public void eoTest(){
     EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
-    // eo.constructDebugOctree();
+    //eo.constructDebugOctree();
     eo.writeBufferToFile("debug.svo");
     // eo.printBufferToFile("debug.txt");
   }
@@ -31,8 +34,14 @@ public class ByteCacheTest {
 
   @Test
   public void shiftTest(){
-    int cSize = 512 << 3;
-    System.out.println(cSize);
+    int x = 12;
+    int y = 1021 << 10;
+    int z = 198 << 20;
+    int sum = x | y | z;
+    System.out.println(x);
+    System.out.println(y);
+    System.out.println(z);
+    System.out.println(sum);
   }
   
 }

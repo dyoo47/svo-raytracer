@@ -1,0 +1,28 @@
+#version 430 core
+
+layout(binding = 3, r8i) uniform iimage3D voxelImage;
+layout(std430, binding = 4) buffer leafStorage{
+  int[2] leafBuffer;
+};
+layout(location = 5) uniform int first;
+layout(location = 6) uniform int offsetX;
+layout(location = 7) uniform int offsetY;
+layout(location = 8) uniform int offsetZ;
+
+
+layout(local_size_x = 2, local_size_y = 2, local_size_z = 2) in;
+void main(void) {
+  int material = imageLoad(voxelImage, ivec3(gl_GlobalInvocationID.xyz) + ivec3(offsetX, offsetY, offsetZ)).r;
+  if(material != 0){
+    leafBuffer[1] = material;
+  }
+  if(material != first){
+    leafBuffer[0] = 1;
+  }
+  // leafBuffer[1] = material;
+  // if(first == imageLoad(voxelImage, ivec3(gl_GlobalInvocationID.xyz)).r){
+  //   leafBuffer[0] = 1;
+  // }else{
+  //   leafBuffer[0] = 0;
+  // }
+}

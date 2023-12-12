@@ -53,9 +53,13 @@ public class Renderer {
     glUniform1i(location, value);
   }
 
+  public void bind3DTexture(int texture){
+    glBindTexture(GL_TEXTURE_3D, texture);
+  }
+
   public int add3DTexture(int unit, int internalFormat, int width, int height, int depth){
     int texture = glGenTextures();
-    glBindTexture(GL_TEXTURE_3D, texture);
+    bind3DTexture(texture);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexStorage3D(GL_TEXTURE_3D, 1, internalFormat, width, height, depth);
     glBindImageTexture(unit, texture, 0, true, 0, GL_WRITE_ONLY, internalFormat);
@@ -65,7 +69,7 @@ public class Renderer {
   public void get3DTextureData(int texture, ByteBuffer buffer){
     glBindTexture(GL_TEXTURE_3D, texture);
     printGLErrors();
-    glGetTexImage(GL_TEXTURE_3D, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
+    glGetTexImage(GL_TEXTURE_3D, 0, GL_RED_INTEGER, GL_BYTE, buffer);
     printGLErrors();
   }
 
@@ -91,6 +95,10 @@ public class Renderer {
   public void updateSSBO(int bindIndex, ByteBuffer data){
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, bindIndex);
     glBufferData(GL_SHADER_STORAGE_BUFFER, data, GL_DYNAMIC_DRAW);
+  }
+
+  public void getSSBO(ByteBuffer buffer){
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, buffer);
   }
 
   public Shader getShaderByName(String name){

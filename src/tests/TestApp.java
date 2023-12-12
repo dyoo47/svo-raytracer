@@ -1,6 +1,7 @@
 import java.nio.ByteBuffer;
 
 import org.junit.Test;
+import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL43C.*;
 
@@ -17,22 +18,50 @@ public class TestApp extends Application {
     int width = 1024;
     int height = 1024;
     int depth = 1024;
-    int texture = renderer.add3DTexture(3, GL_R8UI, width, height, depth);
+    int texture = renderer.add3DTexture(3, GL_R8I, width, height, depth);
     System.out.println("Added 3d texture");
 
-    Renderer.Shader shader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
-    System.out.println("Added shader");
+    Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
+    Renderer.Shader samplerShader = renderer.addShader("voxelsampler", "src/shaders/voxelsampler.comp");
+    System.out.println("Added shaders");
 
-    // renderer.printGLErrors();
-    // renderer.dispatchCompute(shader, width/groupSize, height/groupSize, depth/groupSize);
-    // System.out.println("Dispatched compute");
+    //start test code
+    int groupSize = 1024/8;
 
-    // renderer.printGLErrors();
-    // renderer.get3DTextureData(texture, buffer);
-    // System.out.println("Retrieved 3d texture data");
+    renderer.useProgram(chunkGenShader);
+
+    renderer.setUniformInteger(1, 0);
+    renderer.setUniformInteger(2, -1024);
+    renderer.setUniformInteger(3, 0);
+
+    renderer.printGLErrors();
+    renderer.dispatchCompute(chunkGenShader, groupSize, groupSize, groupSize);
+
+    ByteBuffer voxelData = BufferUtils.createByteBuffer(1024 * 1024 * 1024);
+
+    renderer.printGLErrors();
+    renderer.get3DTextureData(texture, voxelData);
+
+
+
+    ByteBuffer leafBuffer = BufferUtils.createByteBuffer(8);
+    int sampleGroupSize = 2;
+    byte first = 19;
+    System.out.println("first: " + first);
+    renderer.useProgram(samplerShader);
+    renderer.bind3DTexture(texture);
+    renderer.addSSBO("leafStorage", samplerShader, 4, leafBuffer);
+    renderer.setUniformInteger(0, first);
+    renderer.dispatchCompute(samplerShader, sampleGroupSize, sampleGroupSize, sampleGroupSize);
+    renderer.getSSBO(leafBuffer);
+    System.out.println("leafBuffer: " + leafBuffer.getInt(0));
+
+    // byte value = leafBuffer.get(4); //TODO: test this alone
+    // System.out.println("value: " + value);
+    //end test code
 
     EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
-    eo.constructDebugOctree(shader, texture);
+    eo.constructDebugOctree(chunkGenShader, samplerShader, texture);
     eo.writeBufferToFile("debug.svo");
   }
 
