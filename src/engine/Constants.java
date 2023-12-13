@@ -6,6 +6,7 @@ public class Constants {
     public static final float CAMERA_SENSITIVITY = 0.002f;
     public static final float CAMERA_LOWER_LIMIT = -1.570f;
     public static final float CAMERA_UPPER_LIMIT = 1.570f;
+    public static final int OCTREE_MEMORY_SIZE_KB = 1000000;
     public static final int[][] CHILD_OFFSETS = {
         {0, 0, 0},
         {1, 0, 0},

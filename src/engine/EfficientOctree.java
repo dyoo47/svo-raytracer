@@ -17,16 +17,13 @@ public class EfficientOctree {
   ByteBuffer buffer;
   int memOffset = 0;
   int bufferSize = 0;
+  int worldSize;
   WorldGenThread[] threads;
   int[] origin;
-  int size;
-  int splitLOD;
-  ByteBuffer leafBuffer = BufferUtils.createByteBuffer(8);
 
   static final int NODE_SIZE = 6;
   static final int LEAF_SIZE = 3;
   static final int CHUNK_SIZE = 1024;
-  static final int Z_WIDTH = 1048576;
   static byte[][] childOffsets = {
     {0, 0, 0},
     {1, 0, 0},
@@ -38,8 +35,8 @@ public class EfficientOctree {
     {1, 1, 1}
   };
 
-  public EfficientOctree(int memSizeKB, int size, int[] origin){
-    this.size = size;
+  public EfficientOctree(int memSizeKB, int worldSize, int[] origin){
+    this.worldSize = worldSize;
     this.origin = origin;
     bufferSize = memSizeKB * 1024;
     buffer = ByteBuffer.allocateDirect(bufferSize);
@@ -82,12 +79,12 @@ public class EfficientOctree {
     return pointer;
   }
 
-  private void setChildPointer(int parentNode, int childPointer){
-    buffer.putInt(parentNode + 1, childPointer);
+  private void setChildPointer(int parentPointer, int childPointer){
+    buffer.putInt(parentPointer + 1, childPointer - parentPointer);
   }
 
-  private void setLeafMask(int parentNode, byte leafMask){
-    buffer.put(parentNode + 5, leafMask);
+  private void setLeafMask(int parentPointer, byte leafMask){
+    buffer.put(parentPointer + 5, leafMask);
   }
 
   public void printBufferToFile(String fileName){
@@ -117,7 +114,7 @@ public class EfficientOctree {
     ArrayList<Chunk> chunks = new ArrayList<Chunk>();
     fillEmptyChildren(0, chunkLevel, rootPos, chunks);
     int ind = 0;
-    int half = size/2;
+    int half = worldSize/2;
     int[] playerPos = {rootPos[0] + half, rootPos[1] + half, rootPos[2] + half};
     System.out.println("Simulated Player Pos: " + playerPos[0] + ", " + playerPos[1] + ", " + playerPos[2]);
     for(Chunk chunk : chunks){
@@ -178,6 +175,41 @@ public class EfficientOctree {
       int[] startPos = {0, 0, 0};
 
       constructOctree(CHUNK_SIZE, 0, maxLOD, startPos, chunk.pointer, voxelBuffer);
+      // int cSize = CHUNK_SIZE / 2;
+      // int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
+      // OctreeThread[] threads = new OctreeThread[8];
+      // int[][] cPos = new int[8][3];
+      // for(int n = 0; n < 8; n++){
+      //   cPos[n][0] = startPos[0] + childOffsets[n][0] * cSize;
+      //   cPos[n][1] = startPos[1] + childOffsets[n][1] * cSize;
+      //   cPos[n][2] = startPos[2] + childOffsets[n][2] * cSize;
+      // }
+      // for(int i=0; i < 8; i++){
+      //   threads[i] = new OctreeThread(cPos[i], voxelBuffer);
+      //   threads[i].start();
+      // }
+      // int finishedThreads = 0;
+      // while(finishedThreads < 8){
+      //   finishedThreads = 0;
+      //   for(OctreeThread thread : threads){
+      //     if(!thread.isAlive()) finishedThreads++;
+      //   }
+      // }
+
+      // for(int i=0; i < 8; i++){
+      //   OctreeThread thread = threads[i];
+      //   ByteBuffer childBuffer = thread.octree.buffer;
+      //   int childOffset = thread.octree.memOffset;
+
+      //   children[i] = memOffset;
+
+      //   childBuffer.position(0).limit(childOffset);
+      //   buffer.position(memOffset).put(childBuffer);
+      //   memOffset += childOffset;
+      // }
+      // setChildPointer(chunk.pointer, children[0]);
+      
+
       endTime = System.currentTimeMillis() - startTime;
       System.out.println("Octree generation elapsed time: " + endTime / 1000 + "s");
       System.out.println("memoffset: " + memOffset);
@@ -200,8 +232,7 @@ public class EfficientOctree {
       return;
     }
 
-    final int chunkSize = 1024;
-    int cSize = chunkSize << (levels - 1);
+    int cSize = CHUNK_SIZE << (levels - 1);
     int[][] cPos = new int[8][3];
     for(int n = 0; n < 8; n++){
       cPos[n][0] = pPos[0] + childOffsets[n][0] * cSize;
@@ -232,7 +263,8 @@ public class EfficientOctree {
     return voxelData.get(x | (y << 10) | (z << 20));
   }
 
-  private void constructOctree(int size, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
+  
+  public void constructOctree(int size, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
 
     int cSize = size / 2;
     if(cSize == 0 || curLOD == maxLOD) return;

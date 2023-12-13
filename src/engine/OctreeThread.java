@@ -1,24 +1,22 @@
-public class OctreeThread implements Runnable {
+import java.nio.ByteBuffer;
 
-    EfficientOctree octree;
-    Thread thread;
-    int maxLOD;
-    String threadName;
-    public OctreeThread(String name, EfficientOctree octree, int maxLOD){
-        this.octree = octree;
-        this.maxLOD = maxLOD;
-        this.threadName = name;
-    }
-    public void start(){
-        System.out.println("Starting " + threadName + ".");
-        if(thread==null){
-            thread = new Thread(this, threadName);
-            thread.start();
-        }
-    }
-    @Override
-    public void run() {
-        //octree.constructOctree(maxLOD, 0);
-    }
-    
+public class OctreeThread extends Thread{
+
+  EfficientOctree octree;
+  int[] parentPos;
+  ByteBuffer voxelBuffer;
+
+  public OctreeThread(int[] parentPos, ByteBuffer voxelBuffer){
+    this.parentPos = parentPos;
+    this.voxelBuffer = voxelBuffer;
+    octree = new EfficientOctree(Constants.OCTREE_MEMORY_SIZE_KB / 8, 512, parentPos);
+  }
+
+  @Override
+  public void run() {
+    // System.out.println("Started octree thread");
+    octree.constructOctree(512, 0, 8, parentPos, 0, voxelBuffer);
+    // System.out.println("Octree construction complete.");
+  }
+  
 }

@@ -8,10 +8,10 @@ public class World {
   ByteBuffer chunkBuffer;
   EfficientOctree eo;
 
-  public World(int maxLOD, int chunkSize){
-    init(maxLOD, chunkSize);
-    generateOctreeData();
-  }
+  // public World(int maxLOD, int chunkSize){
+  //   init(maxLOD, chunkSize);
+  //   generateOctreeData();
+  // }
 
 public World(int maxLOD, int chunkSize, String fileName){
     init(maxLOD, chunkSize);
@@ -26,12 +26,12 @@ public World(int maxLOD, int chunkSize, String fileName){
     this.size = chunkSize;
   }
 
-  private void generateOctreeData(){
-    eo = new EfficientOctree(1000000, size, origin);
-    OctreeThread ot = new OctreeThread("ot", eo, maxLOD);
-    System.out.println("started octree thread");
-    ot.start();
-  }
+  // private void generateOctreeData(){
+  //   eo = new EfficientOctree(1000000, size, origin);
+  //   OctreeThread ot = new OctreeThread("ot", eo, maxLOD);
+  //   System.out.println("started octree thread");
+  //   ot.start();
+  // }
 
 
 }

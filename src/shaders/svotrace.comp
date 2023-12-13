@@ -81,6 +81,7 @@ struct Node{
     int value;
     int cp;
     int leafMask;
+    uint descriptor;
 };
 
 Node extractNode(uint nodePointer){
@@ -88,10 +89,12 @@ Node extractNode(uint nodePointer){
   //   Node ret = {0, 0, 0};
   //   return ret;
   // }
+  uint descriptor = nodePointer;
   Node ret = {
     getByte(nodePointer++),
     (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
     getByte(nodePointer++),
+    descriptor,
   };
   return ret;
 }
@@ -105,15 +108,15 @@ Node extractLeaf(uint nodePointer){
   //   Node ret = {0, 0, 0};
   //   return ret;
   // }
-  Node ret = {getByte(nodePointer), 0, 0};
+  Node ret = {getByte(nodePointer), 0, 0, nodePointer};
   int raw = getByte(nodePointer+1) | (getByte(nodePointer+2) << 8);
   ret.leafMask = raw;
   return ret;
 }
 
-Node extractChild(uint childPointer, uint child, int leafMask, out uint endPointer){
+Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMask, out uint endPointer){
   int i = 0;
-  uint pointer = childPointer;
+  uint pointer = childPointer + parentPointer;
   while(i < child){
     if((leafMask & (0x01 << i)) == (0x01 << i)){ 
       //debugFlag = true;
@@ -266,7 +269,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
     // if(child_descriptor < 0) debugFlag = true;
 
-    Node child = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
+    Node child = extractChild(parent.descriptor, child_descriptor, child_shift, parent.leafMask, res.pointer);
     if(child.value != 0 && t_min <= t_max){ //check if voxel exists
       // if(child.cp == 0){
       //   //res.hit = true;
@@ -353,7 +356,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
 
   vec3 norm = vec3(0.0f);
-  Node targetNode = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
+  Node targetNode = extractChild(parent.descriptor, child_descriptor, child_shift, parent.leafMask, res.pointer);
   if(targetNode.leafMask != 0){
     int raw = targetNode.leafMask;
     float normX = (raw % 10)-5;

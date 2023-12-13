@@ -41,7 +41,7 @@ public class TestApp extends Application {
     renderer.printGLErrors();
     renderer.get3DTextureData(texture, voxelData);
 
-    EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
+    EfficientOctree eo = new EfficientOctree(Constants.OCTREE_MEMORY_SIZE_KB, 2048, Constants.WORLD_OFFSET);
     eo.constructDebugOctree(chunkGenShader, texture);
     eo.writeBufferToFile("debug.svo");
   }
