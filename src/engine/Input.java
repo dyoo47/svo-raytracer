@@ -1,3 +1,5 @@
+package src.engine;
+
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 import org.lwjgl.system.libffi.FFICIF;

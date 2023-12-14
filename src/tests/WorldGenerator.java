@@ -1,9 +1,10 @@
-import java.nio.ByteBuffer;
+package src.tests;
 
+import java.nio.ByteBuffer;
 import org.junit.Test;
 import org.lwjgl.BufferUtils;
-
 import static org.lwjgl.opengl.GL43C.*;
+import src.engine.*;
 
 public class WorldGenerator extends Application {
 

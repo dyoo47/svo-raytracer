@@ -1,7 +1,8 @@
+package src.tests;
+
+import src.engine.*;
 import static org.junit.Assert.assertEquals;
-
 import java.nio.ByteBuffer;
-
 import org.junit.Test;
 import org.lwjgl.BufferUtils;
 
