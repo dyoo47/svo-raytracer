@@ -127,23 +127,7 @@ public class EfficientOctree {
     int[] playerPos = {rootPos[0] + half, rootPos[1] + half, rootPos[2] + half};
     System.out.println("Simulated Player Pos: " + playerPos[0] + ", " + playerPos[1] + ", " + playerPos[2]);
     for(Chunk chunk : chunks){
-      // setLeafMask(chunk.pointer, (byte) 255);
-      // for(int i=0; i < 8; i++){
-      //   int childPointer = 0;
-      //   if(i == 0 || i == 7) childPointer = createLeafNode((byte) 0, (short) 0);
-      //   else childPointer = createLeafNode((byte) 1, (short) 0);
-      //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
-      // }
-      // setLeafMask(chunk.pointer, (byte) 255);
-      // for(int i=0; i < 8; i++){
-      //   int childPointer = 0;
-      //   if(i%2 == 0) childPointer = createLeafNode((byte) 1, (short) 0);
-      //   else childPointer = createLeafNode((byte) 0, (short) 0);
-      //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
-      // }
-      // chunk.origin = new int[]{0, 0, 0};
       ind++;
-
       int dist = Math.max(
         Math.abs(playerPos[0] - chunk.origin[0]), Math.max(Math.abs(playerPos[1] - chunk.origin[1]),
         Math.abs(playerPos[2] - chunk.origin[2])));
@@ -189,24 +173,8 @@ public class EfficientOctree {
       System.out.println("Voxel generation elapsed time: " + endTime / 1000 + "s");
 
       startTime = System.currentTimeMillis();
+
       int[] startPos = {0, 0, 0};
-
-      // setLeafMask(chunk.pointer, (byte)255);
-      // setChildPointer(chunk.pointer, memOffset);
-      // for(int i=0; i < 8; i++){
-      //   ByteBuffer childBuffer = BufferUtils.createByteBuffer(3);
-      //   byte value = 0;
-      //   if(i%2 == 0) value = 1;
-      //   childBuffer.put(value);
-      //   childBuffer.put((byte)(0));
-      //   childBuffer.put((byte)(0));
-      //   childBuffer.position(0);
-      //   childBuffer.limit(3);
-      //   buffer.position(memOffset).put(childBuffer);
-      //   memOffset += 3;
-      // }
-
-      // constructOctree(CHUNK_SIZE, 0, maxLOD, startPos, chunk.pointer, voxelBuffer);
       int cSize = CHUNK_SIZE / 2;
       int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
       OctreeThread[] threads = new OctreeThread[8];
@@ -228,23 +196,24 @@ public class EfficientOctree {
         }
       }
 
-      //Problem is children are not contiguous nodes.
       for(int i=0; i < 8; i++){
         children[i] = createNode((byte) 1);
       }
       setChildPointer(chunk.pointer, children[0]);
 
-      for(int i=0; i < 8; i++){ //TODO: Change this back to 8
+      for(int i=0; i < 8; i++){
 
         OctreeThread thread = threads[i];
         ByteBuffer childBuffer = thread.octree.buffer;
         int childOffset = thread.octree.memOffset;
+        byte headLeafMask = thread.octree.getLeafMask(0);
 
-        //children[i] = memOffset;
+        // Set child pointer to start of new buffer, copy over leaf mask from dummy head
         setChildPointer(children[i], memOffset);
-        setLeafMask(children[i], thread.octree.getLeafMask(0));
+        setLeafMask(children[i], headLeafMask);
 
-        childBuffer.position(NODE_SIZE).limit(childOffset); //we dont want the dummy head
+        // Copy over buffer minus dummy head
+        childBuffer.position(NODE_SIZE).limit(childOffset);
         buffer.position(memOffset).put(childBuffer);
         memOffset += childOffset;
 
@@ -256,11 +225,6 @@ public class EfficientOctree {
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
-
-    // for(int i=0; i < 200; i++){
-    //   System.out.println(buffer.get(i));
-    // }
-    //printBufferToFile("ManualTest.txt");
   }
 
   class Chunk {
@@ -371,7 +335,6 @@ public class EfficientOctree {
           normalY = normalY / 2 + 5;
           normalZ = normalZ / 2 + 5;
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
-          //System.out.println(normalX + ", " + normalY + ", " + normalZ + " => " + packed);
           children[n] = createLeafNode(value, packed);
         }else{ //TODO: Generalized algorithm for voxels of size N>1 needs work.
           int normalX = 0;
