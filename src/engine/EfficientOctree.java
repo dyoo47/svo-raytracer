@@ -60,6 +60,11 @@ public class EfficientOctree {
   3 :: normal z
   */
 
+  public void createDummyHead(){
+    //TODO: Add error handling
+    createNode((byte)1);
+  }
+
   private int createNode(byte val){
     int pointer = memOffset;
     buffer.put(memOffset++, val);
@@ -85,6 +90,10 @@ public class EfficientOctree {
 
   private void setLeafMask(int parentPointer, byte leafMask){
     buffer.put(parentPointer + 5, leafMask);
+  }
+
+  private byte getLeafMask(int parentPointer){
+    return buffer.get(parentPointer + 5);
   }
 
   public void printBufferToFile(String fileName){
@@ -125,6 +134,14 @@ public class EfficientOctree {
       //   else childPointer = createLeafNode((byte) 1, (short) 0);
       //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
       // }
+      // setLeafMask(chunk.pointer, (byte) 255);
+      // for(int i=0; i < 8; i++){
+      //   int childPointer = 0;
+      //   if(i%2 == 0) childPointer = createLeafNode((byte) 1, (short) 0);
+      //   else childPointer = createLeafNode((byte) 0, (short) 0);
+      //   if(i == 0) setChildPointer(chunk.pointer, childPointer);
+      // }
+      // chunk.origin = new int[]{0, 0, 0};
       ind++;
 
       int dist = Math.max(
@@ -174,40 +191,64 @@ public class EfficientOctree {
       startTime = System.currentTimeMillis();
       int[] startPos = {0, 0, 0};
 
-      constructOctree(CHUNK_SIZE, 0, maxLOD, startPos, chunk.pointer, voxelBuffer);
-      // int cSize = CHUNK_SIZE / 2;
-      // int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
-      // OctreeThread[] threads = new OctreeThread[8];
-      // int[][] cPos = new int[8][3];
-      // for(int n = 0; n < 8; n++){
-      //   cPos[n][0] = startPos[0] + childOffsets[n][0] * cSize;
-      //   cPos[n][1] = startPos[1] + childOffsets[n][1] * cSize;
-      //   cPos[n][2] = startPos[2] + childOffsets[n][2] * cSize;
-      // }
+      // setLeafMask(chunk.pointer, (byte)255);
+      // setChildPointer(chunk.pointer, memOffset);
       // for(int i=0; i < 8; i++){
-      //   threads[i] = new OctreeThread(cPos[i], voxelBuffer);
-      //   threads[i].start();
-      // }
-      // int finishedThreads = 0;
-      // while(finishedThreads < 8){
-      //   finishedThreads = 0;
-      //   for(OctreeThread thread : threads){
-      //     if(!thread.isAlive()) finishedThreads++;
-      //   }
-      // }
-
-      // for(int i=0; i < 8; i++){
-      //   OctreeThread thread = threads[i];
-      //   ByteBuffer childBuffer = thread.octree.buffer;
-      //   int childOffset = thread.octree.memOffset;
-
-      //   children[i] = memOffset;
-
-      //   childBuffer.position(0).limit(childOffset);
+      //   ByteBuffer childBuffer = BufferUtils.createByteBuffer(3);
+      //   byte value = 0;
+      //   if(i%2 == 0) value = 1;
+      //   childBuffer.put(value);
+      //   childBuffer.put((byte)(0));
+      //   childBuffer.put((byte)(0));
+      //   childBuffer.position(0);
+      //   childBuffer.limit(3);
       //   buffer.position(memOffset).put(childBuffer);
-      //   memOffset += childOffset;
+      //   memOffset += 3;
       // }
-      // setChildPointer(chunk.pointer, children[0]);
+
+      // constructOctree(CHUNK_SIZE, 0, maxLOD, startPos, chunk.pointer, voxelBuffer);
+      int cSize = CHUNK_SIZE / 2;
+      int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
+      OctreeThread[] threads = new OctreeThread[8];
+      int[][] cPos = new int[8][3];
+      for(int n = 0; n < 8; n++){
+        cPos[n][0] = startPos[0] + childOffsets[n][0] * cSize;
+        cPos[n][1] = startPos[1] + childOffsets[n][1] * cSize;
+        cPos[n][2] = startPos[2] + childOffsets[n][2] * cSize;
+      }
+      for(int i=0; i < 8; i++){
+        threads[i] = new OctreeThread(cPos[i], voxelBuffer);
+        threads[i].start();
+      }
+      int finishedThreads = 0;
+      while(finishedThreads < 8){
+        finishedThreads = 0;
+        for(OctreeThread thread : threads){
+          if(!thread.isAlive()) finishedThreads++;
+        }
+      }
+
+      //Problem is children are not contiguous nodes.
+      for(int i=0; i < 8; i++){
+        children[i] = createNode((byte) 1);
+      }
+      setChildPointer(chunk.pointer, children[0]);
+
+      for(int i=0; i < 8; i++){ //TODO: Change this back to 8
+
+        OctreeThread thread = threads[i];
+        ByteBuffer childBuffer = thread.octree.buffer;
+        int childOffset = thread.octree.memOffset;
+
+        //children[i] = memOffset;
+        setChildPointer(children[i], memOffset);
+        setLeafMask(children[i], thread.octree.getLeafMask(0));
+
+        childBuffer.position(NODE_SIZE).limit(childOffset); //we dont want the dummy head
+        buffer.position(memOffset).put(childBuffer);
+        memOffset += childOffset;
+
+      }
       
 
       endTime = System.currentTimeMillis() - startTime;
@@ -215,6 +256,11 @@ public class EfficientOctree {
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
+
+    // for(int i=0; i < 200; i++){
+    //   System.out.println(buffer.get(i));
+    // }
+    //printBufferToFile("ManualTest.txt");
   }
 
   class Chunk {
@@ -377,6 +423,7 @@ public class EfficientOctree {
   }
 
   public void writeBufferToFile(String fileName){
+    buffer.position(0);
     try{
       File outfile = new File(fileName);
       ByteBuffer buf = this.getByteBuffer();

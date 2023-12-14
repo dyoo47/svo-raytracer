@@ -36,7 +36,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define NODE_SIZE 6
 #define LEAF_SIZE 3
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
-#define MAX_DEPTH 12
+#define MAX_DEPTH 23
 #define MAX_RAYCAST_ITERATIONS 1000
 #define RENDER_SCALE 2
 #define MAX_FRAME_ITER 100
