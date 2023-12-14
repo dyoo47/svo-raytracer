@@ -26,5 +26,5 @@
       "c:\\Users\\elite\\Downloads\\lwjgl-release-3.2.3-custom\\lwjgl-cuda.jar"
     ]
   },
-  "java.project.sourcePaths": ["src/engine", "src/tests"]
+  "java.project.sourcePaths": ["src/engine", "src/tests", "assets"]
 }

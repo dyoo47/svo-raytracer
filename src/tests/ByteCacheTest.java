@@ -21,7 +21,7 @@ public class ByteCacheTest {
 
   @Test
   public void eoTest(){
-    EfficientOctree eo = new EfficientOctree(1000000, 2048, Constants.WORLD_OFFSET);
+    Octree eo = new Octree(1000000);
     //eo.constructDebugOctree();
     eo.writeBufferToFile("debug.svo");
     // eo.printBufferToFile("debug.txt");
@@ -29,19 +29,7 @@ public class ByteCacheTest {
 
   @Test
   public void gpuGenTest(){
-    TestApp.launch(new TestApp());
-  }
-
-  @Test
-  public void shiftTest(){
-    int x = 12;
-    int y = 1021 << 10;
-    int z = 198 << 20;
-    int sum = x | y | z;
-    System.out.println(x);
-    System.out.println(y);
-    System.out.println(z);
-    System.out.println(sum);
+    WorldGenerator.launch(new WorldGenerator());
   }
 
   @Test

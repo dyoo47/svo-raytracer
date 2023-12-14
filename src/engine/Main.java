@@ -20,8 +20,8 @@ public class Main extends Application {
   int numGroupsX, numGroupsY;
   int renderMode, lastOffset;
 
-  World world;
   Camera cam;
+  Octree octree;
 
   ByteBuffer buffer;
   OctreeStreamer octreeStreamer;
@@ -94,7 +94,9 @@ public class Main extends Application {
     System.out.print("creating voxel data...");
     // world = new World(9, 1024, "blobs.svo");
     // world = new World(10, 2048);
-    world = new World(10, 2048, "debug.svo");
+    // world = new World(10, 2048, "debug.svo");
+    octree = new Octree(10000000);
+    octree.readBufferFromFile("debug.svo");
     System.out.println(" done!");
     
 
@@ -116,7 +118,7 @@ public class Main extends Application {
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); //Get buffer and set buffer must match in size.
     //octreeStreamer.printBuffer(10);
     
-    renderer.addSSBO("shaderStorage", traceShader, 7, world.eo.getByteBuffer());
+    renderer.addSSBO("shaderStorage", traceShader, 7, octree.getByteBuffer());
     
 
     renderMode = 0;
@@ -150,13 +152,13 @@ public class Main extends Application {
     frameNumber++;
     glUniform1i(5, frameNumber);
     glUniform1i(6, renderMode);
-    glUniform1i(9, world.eo.memOffset);
+    glUniform1i(9, octree.memOffset);
 
-    if(lastOffset != world.eo.memOffset || dirty){
+    if(lastOffset != octree.memOffset || dirty){
       dirty = false;
       frameNumber = 0;
-      lastOffset = world.eo.memOffset;
-      renderer.updateSSBO(7, world.eo.getByteBuffer());
+      lastOffset = octree.memOffset;
+      renderer.updateSSBO(7, octree.getByteBuffer());
     }
 
     //Update camera position
@@ -185,10 +187,10 @@ public class Main extends Application {
       cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
     }
     if(Input.keyPressed(Input.SAVE_WORLD)){
-      world.eo.writeBufferToFile("level1.svo");
+      octree.writeBufferToFile("level1.svo");
     }
     if(Input.keyPressed(Input.READ_WORLD)){
-      world.eo.readBufferFromFile("level1.svo");
+      octree.readBufferFromFile("level1.svo");
     }
     if(Input.keyDown(Input.RENDER_MODE_ZERO)){
       renderMode = 0;
@@ -238,7 +240,7 @@ public class Main extends Application {
     if(Input.keyPressed(Input.REMOVE_NODE)){
       dirty = true;
       System.out.println("Edited node " + voxelPointer + ".");
-      world.eo.editLeafNodeValue(voxelPointer, (byte)0);
+      octree.editLeafNodeValue(voxelPointer, (byte)0);
     }
 
 
