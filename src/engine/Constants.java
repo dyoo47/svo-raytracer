@@ -9,6 +9,7 @@ public class Constants {
     public static final float CAMERA_LOWER_LIMIT = -1.570f;
     public static final float CAMERA_UPPER_LIMIT = 1.570f;
     public static final int OCTREE_MEMORY_SIZE_KB = 1000000;
+    public static final int COMPUTE_GROUP_SIZE = 8;
     public static final int CHUNK_SIZE = 1024;
     public static final String MAP_DIR = "./assets/";
     public static final int[][] CHILD_OFFSETS = {

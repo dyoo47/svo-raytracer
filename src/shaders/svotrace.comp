@@ -478,7 +478,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
         mask *= dot(newdir, normal_facing);
       }else{
         pointer = 0;
-        vec3 skycolor = vec3(5.0f);
+        vec3 skycolor = vec3(2.0f);
         accum_color += mask * skycolor;
         break;
         //velocity = 0.0f; //make sequential traces not affect color so we can align computations

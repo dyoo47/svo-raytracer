@@ -17,7 +17,7 @@ public class OctreeThread extends Thread{
   @Override
   public void run() {
     octree.createDummyHead();
-    octree.constructOctree(512, 0,9, parentPos, 0, voxelBuffer);
+    octree.constructInnerOctree(512, 0,9, parentPos, 0, voxelBuffer);
   }
   
 }

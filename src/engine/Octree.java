@@ -47,14 +47,15 @@ public class Octree {
     buffer = ByteBuffer.allocateDirect(bufferSize);
   }
   /*
-  NODE STRUCTURE
+  NEW NODE STRUCTURE (unimplemented)
   branch
   0 :: value - 1 byte
   1 :: child pointer - 4 bytes
   2 ::
   3 ::
   4 ::
-  5 :: leaf mask
+  5 :: leaf mask - 2 bytes
+  6 ::
   if a ray stops on a non-leaf node, we calculate the normal using the face it lands on.
   
   leaf
@@ -62,6 +63,12 @@ public class Octree {
   1 :: normal x
   2 :: normal y
   3 :: normal z
+
+  transparent leaf
+  0 :: value - 1 byte
+
+  flagged branch (unloaded children)
+  0 :: value - 1 byte
   */
 
   public void createDummyHead(){
@@ -127,8 +134,9 @@ public class Octree {
   }
 
   public void constructCompleteOctree(Renderer.Shader chunkGenShader, int texture){
-    int[] rootPos = {0, -1024, 0};
 
+    double startTotalTime = System.currentTimeMillis();
+    int[] rootPos = {0, -1024, 0};
     // construct root
     createNode((byte) 1);
 
@@ -170,7 +178,7 @@ public class Octree {
       double startTime = System.currentTimeMillis();
 
       Renderer renderer = Renderer.getInstance();
-      int groupSize = CHUNK_SIZE/8;
+      int numGroupsEachAxis = CHUNK_SIZE / Constants.COMPUTE_GROUP_SIZE;
 
       renderer.useProgram(chunkGenShader);
       renderer.setUniformInteger(1, chunk.origin[0]);
@@ -178,7 +186,7 @@ public class Octree {
       renderer.setUniformInteger(3, chunk.origin[2]);
 
       renderer.printGLErrors();
-      renderer.dispatchCompute(chunkGenShader, groupSize, groupSize, groupSize);
+      renderer.dispatchCompute(chunkGenShader, numGroupsEachAxis, numGroupsEachAxis, numGroupsEachAxis);
 
       ByteBuffer voxelBuffer = BufferUtils.createByteBuffer(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
 
@@ -241,6 +249,9 @@ public class Octree {
       System.out.println("memoffset: " + memOffset);
       System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
     }
+    double endTotalTime = System.currentTimeMillis() - startTotalTime;
+    System.out.println("Done! Total time: " + endTotalTime / 1000 + "s" + 
+      " | Avg. time: " + endTotalTime / chunks.size() / 1000 + "s");
   }
 
 
@@ -267,7 +278,7 @@ public class Octree {
     setChildPointer(parentPointer, children[0]);
   }
   
-  public void constructOctree(int size, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
+  public void constructInnerOctree(int size, int curLOD, int maxLOD, int[] pPos, int parentPointer, ByteBuffer voxelData){
 
     int cSize = size / 2;
     if(cSize == 0 || curLOD == maxLOD) return;
@@ -305,7 +316,7 @@ public class Octree {
           if(!leaf) break;
         }
       }
-      if(leaf) {
+      if(leaf && value != 0) {
         if(cSize == 1){
           int normalX = 0;
           int normalY = 0;
@@ -330,35 +341,27 @@ public class Octree {
           short packed = (short)(normalX + normalY * 10 + normalZ * 100);
           children[n] = createLeafNode(value, packed);
         }else{ //TODO: Generalized algorithm for voxels of size N>1 needs work.
-          int normalX = 0;
-          int normalY = 0;
-          int normalZ = 0;
-          for(int i = cPos[n][2]-1; i <= cPos[n][2]+cSize; i++){
-            if(i < 0 || i >= CHUNK_SIZE || i >= cPos[n][0] && i <= cPos[n][0]+cSize-1) continue;
-            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize; j++){
+          boolean exposed = false;
+          for(int i = cPos[n][2]-1; i <= cPos[n][2]+cSize+1; i++){
+            if(i < 0 || i >= CHUNK_SIZE || i >= cPos[n][2] && i <= cPos[n][2]+cSize-1) continue;
+            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize+1; j++){
               if(j < 0 || j >= CHUNK_SIZE || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
-              for(int k = cPos[n][0]-1; k <= cPos[n][0]+cSize; k++){
-                if(k < 0 || k >= CHUNK_SIZE || k >= cPos[n][2] && k <= cPos[n][2]+cSize-1) continue;
+              for(int k = cPos[n][0]-1; k <= cPos[n][0]+cSize+1; k++){
+                if(k < 0 || k >= CHUNK_SIZE || k >= cPos[n][0] && k <= cPos[n][0]+cSize-1) continue;
                 if(getVoxel(voxelData, k, j, i) == 0){
-                  normalX += Math.copySign(1, k-cPos[n][0]);
-                  normalY += Math.copySign(1, j-cPos[n][1]);
-                  normalZ += Math.copySign(1, i-cPos[n][2]);
+                  exposed = true;
                 }
               }
             }
           }
-          float maxParam = 2*(cSize+2)*(cSize+2); //calculating max value of a single normal parameter
-          float fnx = normalX / maxParam;
-          float fny = normalY / maxParam;
-          float fnz = normalZ / maxParam;
-          float fnmax = Math.max(Math.abs(fnx), Math.max(Math.abs(fny), Math.abs(fnz)));
-          //instead of dividing by fnmax we can multiply fn by a constant then subtract so fnmax = 1.
-          normalX = (int)(fnx/fnmax * 9) / 2 + 5;
-          normalY = (int)(fny/fnmax * 9) / 2 + 5;
-          normalZ = (int)(fnz/fnmax * 9) / 2 + 5;
-          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
-          children[n] = createLeafNode(value, packed);
+          if(exposed){
+            leaf = false;
+            children[n] = createNode(value);
+          }
+          else children[n] = createLeafNode(value, (short) 0);
         }
+      }else if(leaf){
+        children[n] = createLeafNode(value, (short) 0);
       }
       else children[n] = createNode(value);
       if(leaf) leafMask |= (0x01 << n);
@@ -367,7 +370,7 @@ public class Octree {
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
       if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
-        constructOctree(cSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData);
+        constructInnerOctree(cSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData);
       }
     }
   }
