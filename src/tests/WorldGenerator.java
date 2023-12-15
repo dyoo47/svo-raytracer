@@ -23,6 +23,7 @@ public class WorldGenerator extends Application {
 
     Octree eo = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
     eo.constructCompleteOctree(chunkGenShader, texture);
+    eo.printNodeCounts();
     eo.writeBufferToFile("debug.svo");
   }
 

@@ -9,6 +9,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,8 +20,13 @@ public class Octree {
   int memOffset = 0;
   int bufferSize = 0;
 
-  static final int NODE_SIZE = 6;
+  long surfaceLeafNodes = 0;
+  long nonSurfaceLeafNodes = 0;
+  long interiorNodes = 0;
+
+  static final int NODE_SIZE = 7;
   static final int LEAF_SIZE = 3;
+  static final int NON_SURFACE_LEAF_SIZE = 1;
   static final int CHUNK_SIZE = 1024;
   static byte[][] childOffsets = {
     {0, 0, 0},
@@ -47,8 +53,8 @@ public class Octree {
     buffer = ByteBuffer.allocateDirect(bufferSize);
   }
   /*
-  NEW NODE STRUCTURE (unimplemented)
-  branch
+  NEW NODE STRUCTURE
+  branch - Leaf Tag: 0
   0 :: value - 1 byte
   1 :: child pointer - 4 bytes
   2 ::
@@ -56,24 +62,22 @@ public class Octree {
   4 ::
   5 :: leaf mask - 2 bytes
   6 ::
-  if a ray stops on a non-leaf node, we calculate the normal using the face it lands on.
   
-  leaf
+  surface leaf - Leaf Tag: 1
   0 :: value - 1 byte
-  1 :: normal x
-  2 :: normal y
-  3 :: normal z
+  1 :: normal - 2 bytes
+  2 :: 
 
-  transparent leaf
+  transparent leaf / non-surface leaf - Leaf Tag: 3
   0 :: value - 1 byte
 
-  flagged branch (unloaded children)
+  flagged branch (unused) - Leaf Tag: 2
   0 :: value - 1 byte
   */
 
   public void createDummyHead(){
     //TODO: Add error handling
-    createNode((byte)1);
+    createInteriorNode((byte)1);
   }
 
   public byte getValue(int parentNode){
@@ -88,9 +92,11 @@ public class Octree {
     return voxelData.get(x | (y << 10) | (z << 20));
   }
 
-  private int createNode(byte val){
+  private int createInteriorNode(byte val){
+    interiorNodes++;
     int pointer = memOffset;
     buffer.put(memOffset++, val);
+    buffer.put(memOffset++, (byte)0);
     buffer.put(memOffset++, (byte)0);
     buffer.put(memOffset++, (byte)0);
     buffer.put(memOffset++, (byte)0);
@@ -99,7 +105,8 @@ public class Octree {
     return pointer;
   }
 
-  private int createLeafNode(byte val, short normal){
+  private int createSurfaceLeafNode(byte val, short normal){
+    surfaceLeafNodes++;
     int pointer = memOffset;
     buffer.put(memOffset++, val);
     buffer.put(memOffset++, (byte)(normal));
@@ -107,16 +114,23 @@ public class Octree {
     return pointer;
   }
 
+  private int createNonSurfaceLeafNode(byte val){
+    nonSurfaceLeafNodes++;
+    int pointer = memOffset;
+    buffer.put(memOffset++, val);
+    return pointer;
+  }
+
   private void setChildPointer(int parentPointer, int childPointer){
     buffer.putInt(parentPointer + 1, childPointer - parentPointer);
   }
 
-  private void setLeafMask(int parentPointer, byte leafMask){
-    buffer.put(parentPointer + 5, leafMask);
+  private void setLeafMask(int parentPointer, short leafMask){
+    buffer.putShort(parentPointer + 5, leafMask);
   }
 
-  private byte getLeafMask(int parentPointer){
-    return buffer.get(parentPointer + 5);
+  private short getLeafMask(int parentPointer){
+    return buffer.getShort(parentPointer + 5);
   }
 
   public void printBufferToFile(String fileName){
@@ -138,7 +152,7 @@ public class Octree {
     double startTotalTime = System.currentTimeMillis();
     int[] rootPos = {0, -1024, 0};
     // construct root
-    createNode((byte) 1);
+    createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
     int chunkLevel = 1;
@@ -221,7 +235,7 @@ public class Octree {
       }
 
       for(int i=0; i < 8; i++){
-        children[i] = createNode((byte) 1);
+        children[i] = createInteriorNode((byte) 1);
       }
       setChildPointer(chunk.pointer, children[0]);
 
@@ -230,7 +244,7 @@ public class Octree {
         OctreeThread thread = threads[i];
         ByteBuffer childBuffer = thread.octree.buffer;
         int childOffset = thread.octree.memOffset;
-        byte headLeafMask = thread.octree.getLeafMask(0);
+        short headLeafMask = thread.octree.getLeafMask(0);
 
         // Set child pointer to start of new buffer, copy over leaf mask from dummy head
         setChildPointer(children[i], memOffset);
@@ -241,6 +255,10 @@ public class Octree {
         buffer.position(memOffset).put(childBuffer);
         memOffset += childOffset;
 
+        // Copy over debug info
+        surfaceLeafNodes += thread.octree.surfaceLeafNodes;
+        nonSurfaceLeafNodes += thread.octree.nonSurfaceLeafNodes;
+        interiorNodes += thread.octree.interiorNodes;
       }
       
 
@@ -270,7 +288,7 @@ public class Octree {
     }
     int[] children = new int[8];
     for(int i=0; i<8; i++){
-      children[i] = createNode((byte) 1);
+      children[i] = createInteriorNode((byte) 1);
     }
     for(int i=0; i < 8; i++){
       fillEmptyChildren(children[i], levels - 1, cPos[i], chunks);
@@ -290,11 +308,12 @@ public class Octree {
       cPos[n][1] = pPos[1] + childOffsets[n][1] * cSize;
       cPos[n][2] = pPos[2] + childOffsets[n][2] * cSize;
     }
-    byte leafMask = 0;
+    short leafMask = 0;
     for(int n = 0; n < 8; n++){
       byte first = getVoxel(voxelData, cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
       boolean leaf = true;
+      boolean nonSurface = false;
       //if next LOD is maxLOD, then we can assume all children are leaves.
       if(curLOD + 1 != maxLOD){
         for(int i = cPos[n][2]; i < cPos[n][2] + cSize; i++){
@@ -318,61 +337,92 @@ public class Octree {
       }
       if(leaf && value != 0) {
         if(cSize == 1){
-          int normalX = 0;
-          int normalY = 0;
-          int normalZ = 0;
-          for(int i = cPos[n][0]-1; i <= cPos[n][0]+1; i++){
-            if(i < 0 || i >= CHUNK_SIZE) continue;
-            for(int j = cPos[n][1]-1; j <= cPos[n][1]+1; j++){
-              if(j < 0 || j >= CHUNK_SIZE) continue;
-              for(int k = cPos[n][2]-1; k <= cPos[n][2]+1; k++){
-                if(k < 0 || k >= CHUNK_SIZE) continue;
-                if(getVoxel(voxelData, i, j, k) == 0){
-                  normalX += i - cPos[n][0];
-                  normalY += j - cPos[n][1];
-                  normalZ += k - cPos[n][2];
-                }
-              }
-            }
+          NormalResult normalResult = genSurfaceNormal(cPos, n, voxelData);
+          if(normalResult.exposed){
+            children[n] = createSurfaceLeafNode(value, normalResult.normal);
+          }else{
+            children[n] = createNonSurfaceLeafNode(value);
+            nonSurface = true;
           }
-          normalX = normalX / 2 + 5;
-          normalY = normalY / 2 + 5;
-          normalZ = normalZ / 2 + 5;
-          short packed = (short)(normalX + normalY * 10 + normalZ * 100);
-          children[n] = createLeafNode(value, packed);
-        }else{ //TODO: Generalized algorithm for voxels of size N>1 needs work.
-          boolean exposed = false;
-          for(int i = cPos[n][2]-1; i <= cPos[n][2]+cSize+1; i++){
-            if(i < 0 || i >= CHUNK_SIZE || i >= cPos[n][2] && i <= cPos[n][2]+cSize-1) continue;
-            for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize+1; j++){
-              if(j < 0 || j >= CHUNK_SIZE || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
-              for(int k = cPos[n][0]-1; k <= cPos[n][0]+cSize+1; k++){
-                if(k < 0 || k >= CHUNK_SIZE || k >= cPos[n][0] && k <= cPos[n][0]+cSize-1) continue;
-                if(getVoxel(voxelData, k, j, i) == 0){
-                  exposed = true;
-                }
-              }
-            }
-          }
-          if(exposed){
+        }else{
+          if(checkBigNodeExposed(cPos, cSize, n, voxelData)){
             leaf = false;
-            children[n] = createNode(value);
+            children[n] = createInteriorNode(value);
+          }else{
+            children[n] = createNonSurfaceLeafNode(value);
+            nonSurface = true;
           }
-          else children[n] = createLeafNode(value, (short) 0);
         }
       }else if(leaf){
-        children[n] = createLeafNode(value, (short) 0);
+        children[n] = createNonSurfaceLeafNode(value);
+        nonSurface = true;
       }
-      else children[n] = createNode(value);
-      if(leaf) leafMask |= (0x01 << n);
+      else children[n] = createInteriorNode(value);
+      if(leaf)       leafMask |= (0x0001 << (n << 1));
+      if(nonSurface) leafMask |= (0x0002 << (n << 1));
     }
     setChildPointer(parentPointer, children[0]);
     setLeafMask(parentPointer, leafMask);
     for(int n = 0; n < 8; n++){
-      if(getValue(children[n]) != 0 && (leafMask & (0x01 << n)) == 0){
+      if(getValue(children[n]) != 0 && (leafMask & (0x0001 << (n << 1))) == 0){
         constructInnerOctree(cSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData);
       }
     }
+  }
+
+  class NormalResult {
+    boolean exposed;
+    short normal;
+    public NormalResult(short normal, boolean exposed){
+      this.normal = normal;
+      this.exposed = exposed;
+    }
+  }
+
+  private NormalResult genSurfaceNormal(int[][] cPos, int localChild, ByteBuffer voxelData){
+    int n = localChild;
+    boolean exposed = false;
+    int normalX = 0;
+    int normalY = 0;
+    int normalZ = 0;
+    for(int i = cPos[n][0]-1; i <= cPos[n][0]+1; i++){
+      if(i < 0 || i >= CHUNK_SIZE) continue;
+      for(int j = cPos[n][1]-1; j <= cPos[n][1]+1; j++){
+        if(j < 0 || j >= CHUNK_SIZE) continue;
+        for(int k = cPos[n][2]-1; k <= cPos[n][2]+1; k++){
+          if(k < 0 || k >= CHUNK_SIZE) continue;
+          if(getVoxel(voxelData, i, j, k) == 0){
+            exposed = true;
+            normalX += i - cPos[n][0];
+            normalY += j - cPos[n][1];
+            normalZ += k - cPos[n][2];
+          }
+        }
+      }
+    }
+    normalX = normalX / 2 + 5;
+    normalY = normalY / 2 + 5;
+    normalZ = normalZ / 2 + 5;
+    short packed = (short)(normalX + normalY * 10 + normalZ * 100);
+    return new NormalResult(packed, exposed);
+  }
+
+  private boolean checkBigNodeExposed(int[][] cPos, int cSize, int localChild, ByteBuffer voxelData){
+    int n = localChild;
+    boolean exposed = false;
+    for(int i = cPos[n][2]-1; i <= cPos[n][2]+cSize+1; i++){
+      if(i < 0 || i >= CHUNK_SIZE || i >= cPos[n][2] && i <= cPos[n][2]+cSize-1) continue;
+      for(int j = cPos[n][1]-1; j <= cPos[n][1]+cSize+1; j++){
+        if(j < 0 || j >= CHUNK_SIZE || j >= cPos[n][1] && j <= cPos[n][1]+cSize-1) continue;
+        for(int k = cPos[n][0]-1; k <= cPos[n][0]+cSize+1; k++){
+          if(k < 0 || k >= CHUNK_SIZE || k >= cPos[n][0] && k <= cPos[n][0]+cSize-1) continue;
+          if(getVoxel(voxelData, k, j, i) == 0){
+            exposed = true;
+          }
+        }
+      }
+    }
+    return exposed;
   }
   
   public ByteBuffer getByteBuffer(){
@@ -418,6 +468,15 @@ public class Octree {
 
   public void editLeafNodeValue(int pointer, byte val){
     buffer.put(pointer, val);
+  }
+
+  public void printNodeCounts(){
+    DecimalFormat df = new DecimalFormat("###,###,###,###,###,###");
+    System.out.println("Surface Leaves: " + df.format(surfaceLeafNodes));
+    System.out.println("Non-Surface Leaves: " + df.format(nonSurfaceLeafNodes));
+    System.out.println("Interior Nodes: " + df.format(interiorNodes));
+    long total = surfaceLeafNodes + nonSurfaceLeafNodes + interiorNodes;
+    System.out.println("Total: " + df.format(total));
   }
 
 }

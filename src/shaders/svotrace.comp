@@ -33,8 +33,9 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define CORRECTION_FACTOR 0.000001
 #define PI 3.14159265359f
 #define SAMPLES 1
-#define NODE_SIZE 6
+#define NODE_SIZE 7
 #define LEAF_SIZE 3
+#define NON_SURFACE_LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define MAX_DEPTH 23
 #define MAX_RAYCAST_ITERATIONS 1000
@@ -92,8 +93,8 @@ Node extractNode(uint nodePointer){
   uint descriptor = nodePointer;
   Node ret = {
     getByte(nodePointer++),
-    (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
-    getByte(nodePointer++),
+    (getByte(nodePointer++) << 24) | (getByte(nodePointer++) << 16) | (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    (getByte(nodePointer++) << 8) | getByte(nodePointer++),
     descriptor,
   };
   return ret;
@@ -104,13 +105,15 @@ void requestNode(){
 }
 
 Node extractLeaf(uint nodePointer){
-  // if(nodePointer >= bufferEnd){
-  //   Node ret = {0, 0, 0};
-  //   return ret;
-  // }
   Node ret = {getByte(nodePointer), 0, 0, nodePointer};
   int raw = getByte(nodePointer+1) | (getByte(nodePointer+2) << 8);
   ret.leafMask = raw;
+  return ret;
+}
+
+Node extractNonSurfaceLeaf(uint nodePointer){
+  Node ret = {getByte(nodePointer), 0, 0, nodePointer};
+  ret.leafMask = 0;
   return ret;
 }
 
@@ -118,19 +121,24 @@ Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMas
   int i = 0;
   uint pointer = childPointer + parentPointer;
   while(i < child){
-    if((leafMask & (0x01 << i)) == (0x01 << i)){ 
-      //debugFlag = true;
-      pointer += LEAF_SIZE;
-    }else{
+    int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
+    if(localMask == 0){ 
       pointer += NODE_SIZE;
+    }else if(localMask == 1){
+      pointer += LEAF_SIZE;
+    }else if(localMask == 3){
+      pointer += NON_SURFACE_LEAF_SIZE;
     }
     i++;
   }
   endPointer = pointer;
-  if((leafMask & (0x01 << child)) == (0x01 << child)){
-    return extractLeaf(pointer);
-  }else{
+  int localMask = (leafMask & (0x0003 << (child << 1))) >> (child << 1);
+  if(localMask == 0){
     return extractNode(pointer);
+  }else if(localMask == 1){
+    return extractLeaf(pointer);
+  }else if(localMask == 3){
+    return extractNonSurfaceLeaf(pointer);
   }
 }
 

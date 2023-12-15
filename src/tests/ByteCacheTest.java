@@ -30,7 +30,14 @@ public class ByteCacheTest {
 
   @Test
   public void gpuGenTest(){
-    WorldGenerator.launch(new WorldGenerator());
+    short leafMask = 0;
+    int n = 1;
+    int x = 1;
+    int y = 1;
+    short result = (short) (leafMask | (0x0001 << (n << 1)));
+    result |= (short) (0x0002 << (x << 1));
+    short local = (short) ((result & (0x0003 << (y << 1))) >> (y << 1));
+    System.out.println(local);
   }
 
   @Test
