@@ -2,6 +2,7 @@ package src.engine;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -55,11 +56,38 @@ public class Renderer {
     glUniform1i(location, value);
   }
 
+  public void activateTextureUnit(int unit){
+    glActiveTexture(GL_TEXTURE0 + unit);
+  }
+
+  public void bind2DTexture(int texture){
+    glBindTexture(GL_TEXTURE_2D, texture);
+  }
+
+  public int add2DTexture(int unit, int internalFormat, int width, int height){
+    activateTextureUnit(unit);
+    int texture = glGenTextures();
+    bind2DTexture(texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
+    glBindImageTexture(unit, texture, 0, true, 0, GL_READ_WRITE, internalFormat);
+
+    return texture;
+  }
+
+  public void buffer2DTexture(int texture, int unit, int width, int height, ShortBuffer buffer){
+    activateTextureUnit(unit);
+    bind2DTexture(texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_UNSIGNED_SHORT, buffer);
+  }
+
   public void bind3DTexture(int texture){
     glBindTexture(GL_TEXTURE_3D, texture);
   }
 
   public int add3DTexture(int unit, int internalFormat, int width, int height, int depth){
+    activateTextureUnit(unit);
     int texture = glGenTextures();
     bind3DTexture(texture);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -68,7 +96,8 @@ public class Renderer {
     return texture;
   }
 
-  public void get3DTextureData(int texture, ByteBuffer buffer){
+  public void get3DTextureData(int texture, int unit, ByteBuffer buffer){
+    activateTextureUnit(unit);
     glBindTexture(GL_TEXTURE_3D, texture);
     printGLErrors();
     glGetTexImage(GL_TEXTURE_3D, 0, GL_RED_INTEGER, GL_BYTE, buffer);

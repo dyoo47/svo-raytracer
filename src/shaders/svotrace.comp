@@ -455,10 +455,15 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
-      //vec3 newdir = normal;
+      vec3 newdir;
 
+      if(res.value == 1){
+        newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      }else{
+        newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      }
+
+      //vec3 newdir = normal;
       origin = hitpoint;
       dir = newdir;
 
@@ -472,6 +477,12 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       // }
       vec3 matcolor = hitpoint - 1;
       vec3 matemi = vec3(0.0f);
+
+      if(res.value == 2){
+        matcolor = vec3(0.8f, 0.2f, 0.2f);
+        matemi = vec3(0.4f, 0.1f, 0.1f);
+      }
+
       // vec3 skycolor = vec3(5.0f);
       // int sect = int(intersect);
       // int antisect = int(!intersect);

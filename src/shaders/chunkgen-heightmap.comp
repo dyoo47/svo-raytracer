@@ -1,0 +1,25 @@
+#version 430 core
+
+layout(binding = 4, r16ui) uniform readonly uimage2D heightImage;
+layout(binding = 3, r8i) uniform writeonly iimage3D voxelImage;
+layout(location = 1) uniform int offsetX;
+layout(location = 2) uniform int offsetY;
+layout(location = 3) uniform int offsetZ;
+
+
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+void main(void) {
+  int heightSample = int(imageLoad(
+    heightImage, 
+    ivec2(gl_GlobalInvocationID.xz / 2) + 
+    ivec2(offsetX / 2, offsetZ / 2)
+  ).r / 65536.0 * 512);
+  uint value = 0;
+  if(gl_GlobalInvocationID.y <= heightSample){
+    value = 1;
+  }
+  imageStore(voxelImage, ivec3(gl_GlobalInvocationID.xyz), 
+    ivec4(value, 0, 0, 0));
+  // imageStore(voxelImage, ivec3(gl_GlobalInvocationID.xyz), ivec4(-127, 0, 0, 0));
+}

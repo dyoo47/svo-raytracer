@@ -2,6 +2,7 @@ package src.tests;
 
 import org.junit.Test;
 import static org.lwjgl.opengl.GL43C.*;
+
 import src.engine.*;
 
 public class WorldGenerator extends Application {
@@ -15,14 +16,20 @@ public class WorldGenerator extends Application {
   public void preRun(){
     Renderer renderer = Renderer.getInstance();
     int chunkSize = Constants.CHUNK_SIZE;
-    int texture = renderer.add3DTexture(3, GL_R8I, chunkSize, chunkSize, chunkSize);
-    System.out.println("Added 3d texture");
+    int voxelTexture = renderer.add3DTexture(3, GL_R8I, chunkSize, chunkSize, chunkSize);
+    int heightmapTexture = renderer.add2DTexture(4, GL_R16UI, chunkSize, chunkSize);
+    System.out.println("Added textures");
 
-    Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
+    // Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
+    Renderer.Shader heightmapShader = renderer.addShader("heightmap", "src/shaders/chunkgen-heightmap.comp");
     System.out.println("Added shaders");
 
+    renderer.printGLErrors();
+
+
     Octree eo = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
-    eo.constructCompleteOctree(chunkGenShader, texture);
+    // eo.constructCompleteOctree(chunkGenShader, voxelTexture);
+    eo.constructCompleteOctree(heightmapShader, voxelTexture, heightmapTexture);
     eo.printNodeCounts();
     eo.writeBufferToFile("debug.svo");
   }

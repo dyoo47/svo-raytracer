@@ -2,9 +2,21 @@ package src.tests;
 
 import src.engine.*;
 import static org.junit.Assert.assertEquals;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
+import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
+
+import javax.imageio.ImageIO;
+
 import org.junit.Test;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.stb.STBImage;
+import org.lwjgl.system.MemoryStack;
 
 
 public class ByteCacheTest {
@@ -56,6 +68,35 @@ public class ByteCacheTest {
     for(int i=0; i < 10; i++){
       System.out.println(parent.get(i));
     }
+  }
+
+  @Test
+  public void imageTest(){
+    ByteBuffer heightmapBuffer = BufferUtils.createByteBuffer(1024 * 1024 * 2);
+    ShortBuffer heightmapShortBuffer;
+
+    try(MemoryStack stack = MemoryStack.stackPush()){
+
+      IntBuffer width = stack.mallocInt(1);
+      IntBuffer height = stack.mallocInt(1);
+      IntBuffer channels = stack.mallocInt(1);
+
+      File heightmapFile = new File("./assets/heightmaps/nz.png");
+      String filePath = heightmapFile.getAbsolutePath();
+      heightmapShortBuffer = STBImage.stbi_load_16(filePath, width, height, channels, 1);
+      System.out.println(width.get(0) + ", " + height.get(0) + ", " + channels.get(0));
+      heightmapBuffer.asShortBuffer().put(heightmapShortBuffer);
+      System.out.println(heightmapBuffer.getShort(200));
+    }
+  }
+
+  @Test
+  public void asShortBufferTest(){
+    ByteBuffer buffer = BufferUtils.createByteBuffer(12);
+    buffer.put(0, (byte) 1);
+    buffer.put(1, (byte) 1);
+    ShortBuffer sb = buffer.asShortBuffer();
+    System.out.println(sb.get(0));
   }
   
 }

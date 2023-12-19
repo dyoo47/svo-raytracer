@@ -7,8 +7,10 @@ public class OctreeThread extends Thread{
   Octree octree;
   int[] parentPos;
   ByteBuffer voxelBuffer;
+  int maxLOD;
 
-  public OctreeThread(int[] parentPos, ByteBuffer voxelBuffer){
+  public OctreeThread(int[] parentPos, ByteBuffer voxelBuffer, int maxLOD){
+    this.maxLOD = maxLOD;
     this.parentPos = parentPos;
     this.voxelBuffer = voxelBuffer;
     octree = new Octree(Constants.OCTREE_MEMORY_SIZE_KB / 8);
@@ -17,7 +19,7 @@ public class OctreeThread extends Thread{
   @Override
   public void run() {
     octree.createDummyHead();
-    octree.constructInnerOctree(512, 0,9, parentPos, 0, voxelBuffer);
+    octree.constructInnerOctree(512, 0, maxLOD, parentPos, 0, voxelBuffer);
   }
   
 }

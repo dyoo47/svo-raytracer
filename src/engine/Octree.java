@@ -1,10 +1,13 @@
 package src.engine;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -14,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.stb.STBImage;
+import org.lwjgl.system.MemoryStack;
 
 public class Octree {
   ByteBuffer buffer;
@@ -147,6 +152,151 @@ public class Octree {
     }
   }
 
+  public void constructCompleteOctree(Renderer.Shader chunkGenShader, int voxelTexture, int heightmapTexture){
+
+    double startTotalTime = System.currentTimeMillis();
+    Renderer renderer = Renderer.getInstance();
+    ShortBuffer heightmapBuffer;
+
+    try(MemoryStack stack = MemoryStack.stackPush()){
+
+      IntBuffer width = stack.mallocInt(1);
+      IntBuffer height = stack.mallocInt(1);
+      IntBuffer channels = stack.mallocInt(1);
+
+      File heightmapFile = new File("./assets/heightmaps/nz.png");
+      String filePath = heightmapFile.getAbsolutePath();
+      heightmapBuffer = STBImage.stbi_load_16(filePath, width, height, channels, 1);
+      if(heightmapBuffer == null){
+        throw new Exception("Can't load file " + STBImage.stbi_failure_reason());
+      }
+      renderer.buffer2DTexture(heightmapTexture, 4, width.get(0), height.get(0), heightmapBuffer);
+      STBImage.stbi_image_free(heightmapBuffer);
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+
+    int[] rootPos = {0, -1024, 0};
+    // construct root
+    createInteriorNode((byte) 1);
+
+    // create empty levels up to chunk size
+    int chunkLevel = 1;
+
+    // should calculate this from chunk level
+    int worldSize = 2048;
+
+    // generate octrees for each chunk
+    ArrayList<Chunk> chunks = new ArrayList<Chunk>();
+    fillEmptyChildren(0, chunkLevel, rootPos, chunks);
+    int ind = 0;
+    int half = worldSize/2;
+    int[] playerPos = {rootPos[0] + half, rootPos[1] + half, rootPos[2] + half};
+    System.out.println("Simulated Player Pos: " + playerPos[0] + ", " + playerPos[1] + ", " + playerPos[2]);
+    for(Chunk chunk : chunks){
+      ind++;
+      int dist = Math.max(
+        Math.abs(playerPos[0] - chunk.origin[0]), Math.max(Math.abs(playerPos[1] - chunk.origin[1]),
+        Math.abs(playerPos[2] - chunk.origin[2])));
+      
+      int maxLOD = 9;
+
+      if(dist >= 2048){
+        maxLOD = 7;
+      }
+      if(dist >= 3072){
+        maxLOD = 6;
+      }
+      if(dist >= 4096){
+        maxLOD = 5;
+      }
+
+      System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1] 
+        + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist + ":" + maxLOD);
+      System.out.println(ind + "/" + chunks.size());
+
+      double startTime = System.currentTimeMillis();
+
+      int numGroupsEachAxis = CHUNK_SIZE / Constants.COMPUTE_GROUP_SIZE;
+
+      renderer.useProgram(chunkGenShader);
+      renderer.setUniformInteger(1, chunk.origin[0]);
+      renderer.setUniformInteger(2, chunk.origin[1]);
+      renderer.setUniformInteger(3, chunk.origin[2]);
+
+      renderer.printGLErrors();
+      renderer.dispatchCompute(chunkGenShader, numGroupsEachAxis, numGroupsEachAxis, numGroupsEachAxis);
+
+      ByteBuffer voxelBuffer = BufferUtils.createByteBuffer(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
+
+      renderer.printGLErrors();
+      renderer.get3DTextureData(voxelTexture, 3, voxelBuffer);
+
+      double endTime = System.currentTimeMillis() - startTime;
+      System.out.println("Voxel generation elapsed time: " + endTime / 1000 + "s");
+
+      startTime = System.currentTimeMillis();
+
+      int[] startPos = {0, 0, 0};
+      int cSize = CHUNK_SIZE / 2;
+      int[] children = {0, 0, 0, 0, 0, 0, 0, 0};
+      OctreeThread[] threads = new OctreeThread[8];
+      int[][] cPos = new int[8][3];
+      for(int n = 0; n < 8; n++){
+        cPos[n][0] = startPos[0] + childOffsets[n][0] * cSize;
+        cPos[n][1] = startPos[1] + childOffsets[n][1] * cSize;
+        cPos[n][2] = startPos[2] + childOffsets[n][2] * cSize;
+      }
+      for(int i=0; i < 8; i++){
+        threads[i] = new OctreeThread(cPos[i], voxelBuffer, maxLOD);
+        threads[i].start();
+      }
+      int finishedThreads = 0;
+      while(finishedThreads < 8){
+        finishedThreads = 0;
+        for(OctreeThread thread : threads){
+          if(!thread.isAlive()) finishedThreads++;
+        }
+      }
+
+      for(int i=0; i < 8; i++){
+        children[i] = createInteriorNode((byte) 1);
+      }
+      setChildPointer(chunk.pointer, children[0]);
+
+      for(int i=0; i < 8; i++){
+
+        OctreeThread thread = threads[i];
+        ByteBuffer childBuffer = thread.octree.buffer;
+        int childOffset = thread.octree.memOffset;
+        short headLeafMask = thread.octree.getLeafMask(0);
+
+        // Set child pointer to start of new buffer, copy over leaf mask from dummy head
+        setChildPointer(children[i], memOffset);
+        setLeafMask(children[i], headLeafMask);
+
+        // Copy over buffer minus dummy head
+        childBuffer.position(NODE_SIZE).limit(childOffset);
+        buffer.position(memOffset).put(childBuffer);
+        memOffset += childOffset;
+
+        // Copy over debug info
+        surfaceLeafNodes += thread.octree.surfaceLeafNodes;
+        nonSurfaceLeafNodes += thread.octree.nonSurfaceLeafNodes;
+        interiorNodes += thread.octree.interiorNodes;
+      }
+      
+
+      endTime = System.currentTimeMillis() - startTime;
+      System.out.println("Octree generation elapsed time: " + endTime / 1000 + "s");
+      System.out.println("memoffset: " + memOffset);
+      System.out.println("usage: " + (float)memOffset / 1024 / 1024 + "MB");
+    }
+    double endTotalTime = System.currentTimeMillis() - startTotalTime;
+    System.out.println("Done! Total time: " + endTotalTime / 1000 + "s" + 
+      " | Avg. time: " + endTotalTime / chunks.size() / 1000 + "s");
+  }
+
   public void constructCompleteOctree(Renderer.Shader chunkGenShader, int texture){
 
     double startTotalTime = System.currentTimeMillis();
@@ -176,7 +326,7 @@ public class Octree {
       int maxLOD = 9;
 
       if(dist >= 2048){
-        maxLOD = 8;
+        maxLOD = 7;
       }
       if(dist >= 3072){
         maxLOD = 6;
@@ -205,7 +355,7 @@ public class Octree {
       ByteBuffer voxelBuffer = BufferUtils.createByteBuffer(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
 
       renderer.printGLErrors();
-      renderer.get3DTextureData(texture, voxelBuffer);
+      renderer.get3DTextureData(texture, 3, voxelBuffer);
 
       double endTime = System.currentTimeMillis() - startTime;
       System.out.println("Voxel generation elapsed time: " + endTime / 1000 + "s");
@@ -223,7 +373,7 @@ public class Octree {
         cPos[n][2] = startPos[2] + childOffsets[n][2] * cSize;
       }
       for(int i=0; i < 8; i++){
-        threads[i] = new OctreeThread(cPos[i], voxelBuffer);
+        threads[i] = new OctreeThread(cPos[i], voxelBuffer, maxLOD);
         threads[i].start();
       }
       int finishedThreads = 0;
@@ -434,6 +584,7 @@ public class Octree {
     try{
       File outfile = new File(Constants.MAP_DIR + fileName);
       ByteBuffer buf = this.getByteBuffer();
+      buf.limit(memOffset);
       FileOutputStream fs = new FileOutputStream(outfile, false);
       ByteBuffer header = ByteBuffer.allocate(4);
       header.putInt(memOffset);
