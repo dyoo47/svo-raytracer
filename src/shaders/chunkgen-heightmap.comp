@@ -16,7 +16,7 @@ void main(void) {
     ivec2(offsetX / 2, offsetZ / 2)
   ).r / 65536.0 * 512);
   uint value = 0;
-  if(gl_GlobalInvocationID.y <= heightSample){
+  if(gl_GlobalInvocationID.y + offsetY <= heightSample){
     value = 1;
   }
   imageStore(voxelImage, ivec3(gl_GlobalInvocationID.xyz), 
