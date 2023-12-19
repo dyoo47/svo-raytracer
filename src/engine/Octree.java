@@ -151,11 +151,12 @@ public class Octree {
     }
   }
 
-  public void constructCompleteOctree(Renderer.Shader chunkGenShader, int voxelTexture, int heightmapTexture){
+  public void constructCompleteOctree(Renderer.Shader chunkGenShader, int voxelTexture, int heightmapTexture, int materialTexture){
 
     double startTotalTime = System.currentTimeMillis();
     Renderer renderer = Renderer.getInstance();
     ShortBuffer heightmapBuffer;
+    ByteBuffer matmapBuffer;
 
     try(MemoryStack stack = MemoryStack.stackPush()){
 
@@ -164,13 +165,23 @@ public class Octree {
       IntBuffer channels = stack.mallocInt(1);
 
       File heightmapFile = new File("./assets/heightmaps/nz.png");
-      String filePath = heightmapFile.getAbsolutePath();
-      heightmapBuffer = STBImage.stbi_load_16(filePath, width, height, channels, 1);
+      String heightmapFilePath = heightmapFile.getAbsolutePath();
+      heightmapBuffer = STBImage.stbi_load_16(heightmapFilePath, width, height, channels, 1);
       if(heightmapBuffer == null){
         throw new Exception("Can't load file " + STBImage.stbi_failure_reason());
       }
       renderer.buffer2DTexture(heightmapTexture, 4, width.get(0), height.get(0), heightmapBuffer);
       STBImage.stbi_image_free(heightmapBuffer);
+
+      File matmapFile = new File("./assets/matmaps/materials.png");
+      String matmapFilePath = matmapFile.getAbsolutePath();
+      matmapBuffer = STBImage.stbi_load(matmapFilePath, width, height, channels, 1);
+      if(matmapBuffer == null){
+        throw new Exception("Can't load file " + STBImage.stbi_failure_reason());
+      }
+      renderer.buffer2DTexture(materialTexture, 5, width.get(0), height.get(0), matmapBuffer);
+      STBImage.stbi_image_free(matmapBuffer);
+
     }catch(Exception e){
       e.printStackTrace();
     }

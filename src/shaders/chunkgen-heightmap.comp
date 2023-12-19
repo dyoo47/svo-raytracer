@@ -1,7 +1,8 @@
 #version 430 core
 
-layout(binding = 4, r16ui) uniform readonly uimage2D heightImage;
 layout(binding = 3, r8i) uniform writeonly iimage3D voxelImage;
+layout(binding = 4, r16ui) uniform readonly uimage2D heightImage;
+layout(binding = 5, r8i) uniform readonly iimage2D matImage;
 layout(location = 1) uniform int offsetX;
 layout(location = 2) uniform int offsetY;
 layout(location = 3) uniform int offsetZ;
@@ -10,14 +11,20 @@ layout(location = 3) uniform int offsetZ;
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 void main(void) {
+  ivec2 pos2d = ivec2(gl_GlobalInvocationID.xz / 2) + ivec2(offsetX / 2, offsetZ / 2);
+  int posY = int(gl_GlobalInvocationID.y) + offsetY;
   int heightSample = int(imageLoad(
     heightImage, 
-    ivec2(gl_GlobalInvocationID.xz / 2) + 
-    ivec2(offsetX / 2, offsetZ / 2)
-  ).r / 65536.0 * 512);
+    pos2d
+  ).r / 65536.0 * 1024);
+  int surfaceMatSample = imageLoad(matImage, pos2d).r;
   uint value = 0;
-  if(gl_GlobalInvocationID.y + offsetY <= heightSample){
-    value = 1;
+  if(posY <= heightSample){
+    if(heightSample - posY <= 4){
+      value = surfaceMatSample;
+    }else{
+      value = 1;
+    }
   }
   imageStore(voxelImage, ivec3(gl_GlobalInvocationID.xyz), 
     ivec4(value, 0, 0, 0));

@@ -14,10 +14,13 @@ public class WorldGenerator extends Application {
 
   @Override
   public void preRun(){
+    Material.initMaterials();
     Renderer renderer = Renderer.getInstance();
     int chunkSize = Constants.CHUNK_SIZE;
+    int textureSize = 1024;
     int voxelTexture = renderer.add3DTexture(3, GL_R8I, chunkSize, chunkSize, chunkSize);
-    int heightmapTexture = renderer.add2DTexture(4, GL_R16UI, chunkSize, chunkSize);
+    int heightmapTexture = renderer.add2DTexture(4, GL_R16UI, textureSize, textureSize);
+    int materialTexture = renderer.add2DTexture(5, GL_R8I, textureSize, textureSize);
     System.out.println("Added textures");
 
     // Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
@@ -29,7 +32,7 @@ public class WorldGenerator extends Application {
 
     Octree eo = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
     // eo.constructCompleteOctree(chunkGenShader, voxelTexture);
-    eo.constructCompleteOctree(heightmapShader, voxelTexture, heightmapTexture);
+    eo.constructCompleteOctree(heightmapShader, voxelTexture, heightmapTexture, materialTexture);
     eo.printNodeCounts();
     eo.writeBufferToFile("debug.svo");
   }

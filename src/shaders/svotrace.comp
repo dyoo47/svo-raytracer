@@ -38,7 +38,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define NON_SURFACE_LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
 #define MAX_DEPTH 23
-#define MAX_RAYCAST_ITERATIONS 1000
+#define MAX_RAYCAST_ITERATIONS 1500
 #define RENDER_SCALE 2
 #define MAX_FRAME_ITER 100
 
@@ -457,12 +457,13 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       vec3 v = cross(w, u);
       vec3 newdir;
 
-      if(res.value == 1){
-        newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      }else{
-        newdir = dir - 2 * dot(dir, normal) * normal; //mirror
-      }
+      // if(res.value == 1){
+      //   newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      // }else{
+      //   newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      // }
 
+      newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
       //vec3 newdir = normal;
       origin = hitpoint;
       dir = newdir;
@@ -478,9 +479,14 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       vec3 matcolor = hitpoint - 1;
       vec3 matemi = vec3(0.0f);
 
+      if(res.value == 1){
+        matcolor = vec3(0.84f, 0.86f, 0.78f);
+      }
       if(res.value == 2){
-        matcolor = vec3(0.8f, 0.2f, 0.2f);
-        matemi = vec3(0.4f, 0.1f, 0.1f);
+        matcolor = vec3(0.57f, 0.5f, 0.31f);
+      }
+      if(res.value == 3){
+        matcolor = vec3(0.37f, 0.43f, 0.27f);
       }
 
       // vec3 skycolor = vec3(5.0f);
@@ -522,7 +528,18 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       iter = res.iter;
       vec3 hitpoint = origin + dir * res.t;
       //intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
-      return hitpoint-1;
+      vec3 matcolor;
+      if(res.value == 1){
+        matcolor = vec3(0.84f, 0.86f, 0.78f);
+      }
+      if(res.value == 2){
+        matcolor = vec3(0.57f, 0.5f, 0.31f);
+      }
+      if(res.value == 3){
+        matcolor = vec3(0.37f, 0.43f, 0.27f);
+      }
+      // return hitpoint-1;
+      return matcolor;
     }else{
       iter = res.iter;
       pointer = 0;

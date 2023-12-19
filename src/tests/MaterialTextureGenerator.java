@@ -16,15 +16,6 @@ import src.engine.*;
 
 public class MaterialTextureGenerator extends Application {
 
-  class Material {
-    byte id;
-    String mapFilePath;
-    public Material(byte id, String mapFilePath){
-      this.id = id;
-      this.mapFilePath = mapFilePath;
-    }
-  }
-
   @Test
   public void test(){
     Configuration.STACK_SIZE.set(3072); // This is in kb
@@ -33,29 +24,29 @@ public class MaterialTextureGenerator extends Application {
 
   @Override
   public void preRun(){
+
+    Material.initMaterials();
     int textureSize = 1024;
-    final int numMaterials = 3;
     boolean generateVisual = true;
     String outputPath = "./assets/matmaps/materials.png";
     String outputVisPath = "./assets/matmaps/materials.vis.png";
-    Material[] materials = new Material[numMaterials];
-    materials[0] = new Material((byte) 1, "./assets/matmaps/stone.png");
-    materials[1] = new Material((byte) 2, "./assets/matmaps/scree.png");
-    materials[2] = new Material((byte) 3, "./assets/matmaps/grass.png");
+    
     ByteBuffer combinedBuffer;
     ByteBuffer visualBuffer = null;
     try(MemoryStack stack = MemoryStack.stackPush()){
       combinedBuffer = stack.malloc(textureSize * textureSize);
       if(generateVisual) visualBuffer = stack.malloc(textureSize * textureSize);
       BufferUtils.zeroBuffer(combinedBuffer);
-      for(Material material : materials){
-        ShortBuffer texBuffer = loadTexture(material.mapFilePath, stack);
-        System.out.println("Loaded texture " + material.mapFilePath);
-        for(int i=0; i < texBuffer.limit(); i++){
-          if(texBuffer.get(i) == (byte) -1){
-            combinedBuffer.put(i, (byte)(material.id));
+      for(int i=0; i < Material.getNumMats(); i++){
+        Material material = Material.getMaterial(i);
+        if(!material.hasMatMap()) continue;
+        ShortBuffer texBuffer = loadTexture(material.matmapFilePath, stack);
+        System.out.println("Loaded texture " + material.matmapFilePath);
+        for(int j=0; j < texBuffer.limit(); j++){
+          if(texBuffer.get(j) == (byte) -1){
+            combinedBuffer.put(j, (byte)(material.value));
             if(generateVisual){
-              visualBuffer.put(i, (byte)(material.id * 16));
+              visualBuffer.put(j, (byte)(material.value * 16));
             }
           }
         }
@@ -82,7 +73,6 @@ public class MaterialTextureGenerator extends Application {
     if(buffer == null){
       System.out.println("Can't read file " + filePath + ": " + STBImage.stbi_failure_reason());
     }
-    // STBImage.stbi_image_free(buffer);
     return buffer;
   }
 

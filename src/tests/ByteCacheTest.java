@@ -3,15 +3,11 @@ package src.tests;
 import src.engine.*;
 import static org.junit.Assert.assertEquals;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
 import java.io.File;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
-import javax.imageio.ImageIO;
 
 import org.junit.Test;
 import org.lwjgl.BufferUtils;
@@ -92,11 +88,18 @@ public class ByteCacheTest {
 
   @Test
   public void asShortBufferTest(){
-    ByteBuffer buffer = BufferUtils.createByteBuffer(12);
-    buffer.put(0, (byte) 1);
-    buffer.put(1, (byte) 1);
-    ShortBuffer sb = buffer.asShortBuffer();
-    System.out.println(sb.get(0));
+    ByteBuffer matmapBuffer = BufferUtils.createByteBuffer(1024 * 1024);
+    try(MemoryStack stack = MemoryStack.stackPush()){
+      IntBuffer width = stack.mallocInt(1);
+      IntBuffer height = stack.mallocInt(1);
+      IntBuffer channels = stack.mallocInt(1);
+
+      File heightmapFile = new File("./assets/matmaps/materials.png");
+      String filePath = heightmapFile.getAbsolutePath();
+      matmapBuffer = STBImage.stbi_load(filePath, width, height, channels, 1);
+
+      System.out.println(matmapBuffer.get(126 + 1024*443));
+    }
   }
   
 }

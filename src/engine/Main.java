@@ -43,6 +43,7 @@ public class Main extends Application {
   @Override
   protected void preRun() {
 
+    Material.initMaterials();
     renderer = Renderer.getInstance();
 
     pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);

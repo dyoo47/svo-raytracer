@@ -71,7 +71,7 @@ public class Renderer {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
-    glBindImageTexture(unit, texture, 0, true, 0, GL_READ_WRITE, internalFormat);
+    glBindImageTexture(unit, texture, 0, true, 0, GL_READ_WRITE, internalFormat); //TODO: Change this to GL_READ_ONLY?
 
     return texture;
   }
@@ -80,6 +80,12 @@ public class Renderer {
     activateTextureUnit(unit);
     bind2DTexture(texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_UNSIGNED_SHORT, buffer);
+  }
+
+  public void buffer2DTexture(int texture, int unit, int width, int height, ByteBuffer buffer){
+    activateTextureUnit(unit);
+    bind2DTexture(texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_BYTE, buffer);
   }
 
   public void bind3DTexture(int texture){
