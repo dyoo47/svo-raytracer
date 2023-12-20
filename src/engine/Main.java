@@ -49,7 +49,6 @@ public class Main extends Application {
     pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);
     pixel = new byte[4];
 
-
     // Create VAO
     glBindVertexArray(glGenVertexArrays());
 
@@ -60,14 +59,12 @@ public class Main extends Application {
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(0, framebuffer, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 
-    //Create pointerbuffer texture to store voxel pointer data
+    // Create pointerbuffer texture to store voxel pointer data
     pointerbuffer = glGenTextures();
     glBindTexture(GL_TEXTURE_2D, pointerbuffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32UI, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(1, pointerbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
-
-
 
     // Create program to render framebuffer texture as fullscreen quad
     System.out.print("creating fullscreen quad...");
@@ -86,14 +83,13 @@ public class Main extends Application {
     // Set up compute shaders
     traceShader = renderer.addShader("svotrace", "src/shaders/svotrace.comp");
 
-
     // Determine number of work groups to dispatch
-    numGroupsX = (int) Math.ceil((double)Constants.WINDOW_WIDTH / 8);
-    numGroupsY = (int) Math.ceil((double)Constants.WINDOW_HEIGHT / 8);
+    numGroupsX = (int) Math.ceil((double) Constants.WINDOW_WIDTH / 8);
+    numGroupsY = (int) Math.ceil((double) Constants.WINDOW_HEIGHT / 8);
 
     // Make window visible and loop until window should be closed
 
-    //--INITIALIZE
+    // --INITIALIZE
     System.out.print("creating voxel data...");
     // world = new World(9, 1024, "blobs.svo");
     // world = new World(10, 2048);
@@ -101,28 +97,27 @@ public class Main extends Application {
     octree = new Octree(10000000);
     octree.readBufferFromFile("debug.svo");
     System.out.println(" done!");
-    
 
     cam = new Camera();
     cam.setPos(1.5f, 1.5f, 2.0f);
 
-    //Create memory cache
+    // Create memory cache
     ByteBuffer testbuffer = ByteBuffer.allocateDirect(Constants.REQUEST_BUFFER_SIZE_KB * 1000);
-    testbuffer.put(0, (byte)11);
-    testbuffer.put(1, (byte)12);
+    testbuffer.put(0, (byte) 11);
+    testbuffer.put(1, (byte) 12);
 
-    //System.out.println("test buffer:");
-    //System.out.println(testbuffer.get(0));
-    //System.out.println(testbuffer.get(1));
+    // System.out.println("test buffer:");
+    // System.out.println(testbuffer.get(0));
+    // System.out.println(testbuffer.get(1));
 
     renderer.addSSBO("requestStorage", traceShader, 10, testbuffer);
 
     octreeStreamer = new OctreeStreamer();
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); //Get buffer and set buffer must match in size.
-    //octreeStreamer.printBuffer(10);
-    
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); // Get buffer and set buffer must
+                                                                                   // match in size.
+    // octreeStreamer.printBuffer(10);
+
     renderer.addSSBO("shaderStorage", traceShader, 7, octree.getByteBuffer());
-    
 
     renderMode = 0;
     lastOffset = 0;
@@ -151,101 +146,101 @@ public class Main extends Application {
 
     glBindTexture(GL_TEXTURE_2D, framebuffer);
 
-    //Update frame
+    // Update frame
     frameNumber++;
     glUniform1i(5, frameNumber);
     glUniform1i(6, renderMode);
     glUniform1i(9, octree.memOffset);
 
-    if(lastOffset != octree.memOffset || dirty){
+    if (lastOffset != octree.memOffset || dirty) {
       dirty = false;
       frameNumber = 0;
       lastOffset = octree.memOffset;
       renderer.updateSSBO(7, octree.getByteBuffer());
     }
 
-    //Update camera position
-    if(Input.keyDown(Input.MOVE_FORWARD)){
+    // Update camera position
+    if (Input.keyDown(Input.MOVE_FORWARD)) {
       frameNumber = 0;
       cam.strafe(1, 0);
     }
-    if(Input.keyDown(Input.MOVE_BACK)){
+    if (Input.keyDown(Input.MOVE_BACK)) {
       frameNumber = 0;
       cam.strafe(-1, 0);
     }
-    if(Input.keyDown(Input.MOVE_LEFT)){
+    if (Input.keyDown(Input.MOVE_LEFT)) {
       frameNumber = 0;
       cam.strafe(0, -1);
     }
-    if(Input.keyDown(Input.MOVE_RIGHT)){
+    if (Input.keyDown(Input.MOVE_RIGHT)) {
       frameNumber = 0;
       cam.strafe(0, 1);
     }
-    if(Input.keyDown(Input.MOVE_UP)){
+    if (Input.keyDown(Input.MOVE_UP)) {
       frameNumber = 0;
       cam.setPos(cam.pos[0], cam.pos[1] + cam.speed, cam.pos[2]);
     }
-    if(Input.keyDown(Input.MOVE_DOWN)){
+    if (Input.keyDown(Input.MOVE_DOWN)) {
       frameNumber = 0;
       cam.setPos(cam.pos[0], cam.pos[1] - cam.speed, cam.pos[2]);
     }
-    if(Input.keyPressed(Input.SAVE_WORLD)){
+    if (Input.keyPressed(Input.SAVE_WORLD)) {
       octree.writeBufferToFile("level1.svo");
     }
-    if(Input.keyPressed(Input.READ_WORLD)){
+    if (Input.keyPressed(Input.READ_WORLD)) {
       octree.readBufferFromFile("level1.svo");
     }
-    if(Input.keyDown(Input.RENDER_MODE_ZERO)){
+    if (Input.keyDown(Input.RENDER_MODE_ZERO)) {
       renderMode = 0;
       frameNumber = 0;
     }
-    if(Input.keyDown(Input.RENDER_MODE_ONE)){
+    if (Input.keyDown(Input.RENDER_MODE_ONE)) {
       renderMode = 1;
       frameNumber = 0;
     }
-    if(Input.keyDown(Input.RENDER_MODE_TWO)){
+    if (Input.keyDown(Input.RENDER_MODE_TWO)) {
       renderMode = 2;
       frameNumber = 0;
     }
-    if(Input.keyDown(Input.RENDER_MODE_THREE)){
+    if (Input.keyDown(Input.RENDER_MODE_THREE)) {
       renderMode = 3;
       frameNumber = 0;
     }
-    if(Input.keyDown(Input.ROTATE_LEFT)){
+    if (Input.keyDown(Input.ROTATE_LEFT)) {
       frameNumber = 0;
       cam.rotate(0.0f, 0.01f, 0.0f);
     }
-    if(Input.keyDown(Input.ROTATE_RIGHT)){
+    if (Input.keyDown(Input.ROTATE_RIGHT)) {
       frameNumber = 0;
       cam.rotate(0.0f, -0.01f, 0.0f);
-      //cam.rotateDir(0.0f, -0.01f);
+      // cam.rotateDir(0.0f, -0.01f);
     }
-    if(Input.keyDown(Input.ROTATE_UP)){
+    if (Input.keyDown(Input.ROTATE_UP)) {
       frameNumber = 0;
       cam.rotate(0.01f, 0.0f, 0.0f);
     }
-    if(Input.keyDown(Input.ROTATE_DOWN)){
+    if (Input.keyDown(Input.ROTATE_DOWN)) {
       frameNumber = 0;
       cam.rotate(-0.01f, 0.0f, 0.0f);
     }
     double[] mouseDelta = Input.getMouseDelta();
-    if(mouseDelta[0] != 0 || mouseDelta[1] != 0) frameNumber = 0;
-    cam.rotate(0.0f, (float)-mouseDelta[0] * Constants.CAMERA_SENSITIVITY, 0.0f);
-    cam.rotate((float)-mouseDelta[1] * Constants.CAMERA_SENSITIVITY, 0.0f, 0.0f);
+    if (mouseDelta[0] != 0 || mouseDelta[1] != 0)
+      frameNumber = 0;
+    cam.rotate(0.0f, (float) -mouseDelta[0] * Constants.CAMERA_SENSITIVITY, 0.0f);
+    cam.rotate((float) -mouseDelta[1] * Constants.CAMERA_SENSITIVITY, 0.0f, 0.0f);
 
-    if(Input.keyDown(Input.SPEED_TURBO)){
+    if (Input.keyDown(Input.SPEED_TURBO)) {
       cam.setSpeed(0.005f);
-    }else if(Input.keyDown(Input.SPEED_SLOW)){
+    } else if (Input.keyDown(Input.SPEED_SLOW)) {
       cam.setSpeed(0.0001f);
-    }else{
+    } else {
       cam.setSpeed(0.0005f);
     }
-    if(Input.keyPressed(Input.REMOVE_NODE)){
+    if (Input.keyPressed(Input.REMOVE_NODE)) {
       dirty = true;
       System.out.println("Edited node " + voxelPointer + ".");
-      octree.editLeafNodeValue(voxelPointer, (byte)0);
+      octree.editLeafNodeValue(voxelPointer, (byte) 0);
     }
-
 
     glUniform3fv(8, cam.pos);
     glUniform3fv(1, cam.l1);
@@ -260,21 +255,26 @@ public class Main extends Application {
   @Override
   public void drawUi() {
     ImGui.text("Render Mode: " + renderMode);
-    ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", " + String.format("%.3f", cam.pos[2]));
+    ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", "
+        + String.format("%.3f", cam.pos[2]));
     ImGui.text("Octree Size: " + lastOffset + " bytes");
     ImGui.text("Frame Time: " + frameTime + " ms");
     ImGui.text("Texture Width: " + frameWidth[0]);
     ImGui.text("Texture Height: " + frameHeight[0]);
     ImGui.text("Voxel Pointer: " + voxelPointer);
-    // ImGui.text("Request Buffer [0]: " + Integer.toString(octreeStreamer.requestBuffer.get(0)));
-    // ImGui.text("Request Buffer [1]: " + Integer.toString(octreeStreamer.requestBuffer.get(1)));
-    // ImGui.text("Request Buffer [2]: " + Integer.toString(octreeStreamer.requestBuffer.get(2)));
-    // ImGui.text("Request Buffer [3]: " + Integer.toString(octreeStreamer.requestBuffer.get(3)));
+    // ImGui.text("Request Buffer [0]: " +
+    // Integer.toString(octreeStreamer.requestBuffer.get(0)));
+    // ImGui.text("Request Buffer [1]: " +
+    // Integer.toString(octreeStreamer.requestBuffer.get(1)));
+    // ImGui.text("Request Buffer [2]: " +
+    // Integer.toString(octreeStreamer.requestBuffer.get(2)));
+    // ImGui.text("Request Buffer [3]: " +
+    // Integer.toString(octreeStreamer.requestBuffer.get(3)));
   }
-  
+
   @Override
   public void update() {
-    
+
   }
 
   @Override
@@ -282,16 +282,15 @@ public class Main extends Application {
     Input.update();
   }
 
-
   public static void main(String[] args) {
     launch(new Main());
   }
 
-  static String ff(float value){
+  static String ff(float value) {
     return String.format("%.3f", value);
   }
 
-  static String fd(double value){
+  static String fd(double value) {
     return String.format("%.0f", value);
   }
 }

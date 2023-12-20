@@ -19,27 +19,28 @@ public class Renderer {
     String name;
     int computeProgram;
     int computeProgramShader;
-    Shader(String name, int computeProgram, int computeProgramShader){
+
+    Shader(String name, int computeProgram, int computeProgramShader) {
       this.name = name;
       this.computeProgram = computeProgram;
       this.computeProgramShader = computeProgramShader;
     }
   }
 
-  private Renderer(){
+  private Renderer() {
     shaders = new ArrayList<Shader>();
   }
 
-  public static Renderer getInstance(){
+  public static Renderer getInstance() {
     return instance;
   }
 
-  public void initVoxelTexture(){
+  public void initVoxelTexture() {
     voxelTexture = instance.add3DTexture(0, GL_R8UI, 1024, 1024, 1024);
     instance.addShader("chunkgen", "src/shaders/chunkgen.comp");
   }
 
-  public Shader addShader(String name, String path){
+  public Shader addShader(String name, String path) {
     int computeProgram = glCreateProgram();
     int computeProgramShader = glCreateShader(GL_COMPUTE_SHADER);
     glShaderSource(computeProgramShader, readFromFile(path));
@@ -52,47 +53,47 @@ public class Renderer {
     return shader;
   }
 
-  public void setUniformInteger(int location, int value){
+  public void setUniformInteger(int location, int value) {
     glUniform1i(location, value);
   }
 
-  public void activateTextureUnit(int unit){
+  public void activateTextureUnit(int unit) {
     glActiveTexture(GL_TEXTURE0 + unit);
   }
 
-  public void bind2DTexture(int texture){
+  public void bind2DTexture(int texture) {
     glBindTexture(GL_TEXTURE_2D, texture);
   }
 
-  public int add2DTexture(int unit, int internalFormat, int width, int height){
+  public int add2DTexture(int unit, int internalFormat, int width, int height) {
     activateTextureUnit(unit);
     int texture = glGenTextures();
     bind2DTexture(texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
-    glBindImageTexture(unit, texture, 0, true, 0, GL_READ_WRITE, internalFormat); //TODO: Change this to GL_READ_ONLY?
+    glBindImageTexture(unit, texture, 0, true, 0, GL_READ_WRITE, internalFormat); // TODO: Change this to GL_READ_ONLY?
 
     return texture;
   }
 
-  public void buffer2DTexture(int texture, int unit, int width, int height, ShortBuffer buffer){
+  public void buffer2DTexture(int texture, int unit, int width, int height, ShortBuffer buffer) {
     activateTextureUnit(unit);
     bind2DTexture(texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_UNSIGNED_SHORT, buffer);
   }
 
-  public void buffer2DTexture(int texture, int unit, int width, int height, ByteBuffer buffer){
+  public void buffer2DTexture(int texture, int unit, int width, int height, ByteBuffer buffer) {
     activateTextureUnit(unit);
     bind2DTexture(texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_BYTE, buffer);
   }
 
-  public void bind3DTexture(int texture){
+  public void bind3DTexture(int texture) {
     glBindTexture(GL_TEXTURE_3D, texture);
   }
 
-  public int add3DTexture(int unit, int internalFormat, int width, int height, int depth){
+  public int add3DTexture(int unit, int internalFormat, int width, int height, int depth) {
     activateTextureUnit(unit);
     int texture = glGenTextures();
     bind3DTexture(texture);
@@ -102,7 +103,7 @@ public class Renderer {
     return texture;
   }
 
-  public void get3DTextureData(int texture, int unit, ByteBuffer buffer){
+  public void get3DTextureData(int texture, int unit, ByteBuffer buffer) {
     activateTextureUnit(unit);
     glBindTexture(GL_TEXTURE_3D, texture);
     printGLErrors();
@@ -110,16 +111,16 @@ public class Renderer {
     printGLErrors();
   }
 
-  public void useProgram(Shader shader){
+  public void useProgram(Shader shader) {
     glUseProgram(shader.computeProgram);
   }
 
-  public void dispatchCompute(Shader shader, int numGroupsX, int numGroupsY, int numGroupsZ){
+  public void dispatchCompute(Shader shader, int numGroupsX, int numGroupsY, int numGroupsZ) {
     glDispatchCompute(numGroupsX, numGroupsY, numGroupsZ);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
 
-  public void addSSBO(String name, Shader shader, int bindIndex, ByteBuffer data){
+  public void addSSBO(String name, Shader shader, int bindIndex, ByteBuffer data) {
     int ssbo = glGenBuffers();
     int blockIndex = glGetProgramResourceIndex(shader.computeProgram, GL_SHADER_STORAGE_BLOCK, name);
     glShaderStorageBlockBinding(shader.computeProgram, blockIndex, bindIndex);
@@ -129,34 +130,35 @@ public class Renderer {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo);
   }
 
-  public void updateSSBO(int bindIndex, ByteBuffer data){
+  public void updateSSBO(int bindIndex, ByteBuffer data) {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, bindIndex);
     glBufferData(GL_SHADER_STORAGE_BUFFER, data, GL_DYNAMIC_DRAW);
   }
 
-  public void getSSBO(ByteBuffer buffer){
+  public void getSSBO(ByteBuffer buffer) {
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, buffer);
   }
 
-  public Shader getShaderByName(String name){
-    for(Shader shader : shaders){
-      if(shader.name.equals(name)) return shader;
+  public Shader getShaderByName(String name) {
+    for (Shader shader : shaders) {
+      if (shader.name.equals(name))
+        return shader;
     }
     return null;
   }
 
-  public void printGLErrors(){
+  public void printGLErrors() {
     int err;
-    while((err = glGetError()) != GL_NO_ERROR){
+    while ((err = glGetError()) != GL_NO_ERROR) {
       System.out.println("OpenGL ERR: " + err);
     }
   }
 
-  public static String readFromFile(String filePath){
+  public static String readFromFile(String filePath) {
     String content = "";
-    try{
+    try {
       content = Files.readString(Paths.get(filePath));
-    } catch (IOException e){
+    } catch (IOException e) {
       e.printStackTrace();
     }
     return content;

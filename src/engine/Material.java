@@ -10,33 +10,33 @@ public class Material {
   public int type;
   public String matmapFilePath;
 
-  public Material(byte value, String name, int type){
+  public Material(byte value, String name, int type) {
     this.value = value;
     this.name = name;
     this.type = type;
     matmapFilePath = null;
   }
 
-  public Material(byte value, String name, int type, String matmapFilePath){
+  public Material(byte value, String name, int type, String matmapFilePath) {
     this.value = value;
     this.name = name;
     this.type = type;
     this.matmapFilePath = matmapFilePath;
   }
 
-  public boolean hasMatMap(){
+  public boolean hasMatMap() {
     return matmapFilePath != null;
   }
 
-  public static int getNumMats(){
+  public static int getNumMats() {
     return numMats;
   }
 
-  public static Material getMaterial(int id){
+  public static Material getMaterial(int id) {
     return materials[id];
   }
 
-  public static void initMaterials(){
+  public static void initMaterials() {
     materials = new Material[Constants.MAX_MATERIALS];
     numMats = 0;
     materials[0] = new Material((byte) numMats++, "air", 1);

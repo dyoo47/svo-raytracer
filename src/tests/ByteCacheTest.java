@@ -8,36 +8,34 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
-
 import org.junit.Test;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 
-
 public class ByteCacheTest {
-  
+
   @Test
-  public void eval(){
+  public void eval() {
     ByteCache byteCache = new ByteCache(3);
-    byteCache.appendByte((byte)1);
-    byteCache.appendByte((byte)1);
-    byteCache.appendByte((byte)1);
-    byteCache.appendByte((byte)2);
-    assertEquals((byte)2, byteCache.getBuffer().get(2));
-    assertEquals((byte)2, byteCache.getFirst());
+    byteCache.appendByte((byte) 1);
+    byteCache.appendByte((byte) 1);
+    byteCache.appendByte((byte) 1);
+    byteCache.appendByte((byte) 2);
+    assertEquals((byte) 2, byteCache.getBuffer().get(2));
+    assertEquals((byte) 2, byteCache.getFirst());
   }
 
   @Test
-  public void eoTest(){
+  public void eoTest() {
     Octree eo = new Octree(1000000);
-    //eo.constructDebugOctree();
+    // eo.constructDebugOctree();
     eo.writeBufferToFile("debug.svo");
     // eo.printBufferToFile("debug.txt");
   }
 
   @Test
-  public void gpuGenTest(){
+  public void gpuGenTest() {
     short leafMask = 0;
     int n = 1;
     int x = 1;
@@ -49,7 +47,7 @@ public class ByteCacheTest {
   }
 
   @Test
-  public void bufferTest(){
+  public void bufferTest() {
     ByteBuffer parent = BufferUtils.createByteBuffer(10);
     ByteBuffer child = BufferUtils.createByteBuffer(4);
     ByteBuffer child1 = BufferUtils.createByteBuffer(4);
@@ -61,17 +59,17 @@ public class ByteCacheTest {
     child1.put(1, (byte) 4);
     parent.put(child);
     parent.put(child1);
-    for(int i=0; i < 10; i++){
+    for (int i = 0; i < 10; i++) {
       System.out.println(parent.get(i));
     }
   }
 
   @Test
-  public void imageTest(){
+  public void imageTest() {
     ByteBuffer heightmapBuffer = BufferUtils.createByteBuffer(1024 * 1024 * 2);
     ShortBuffer heightmapShortBuffer;
 
-    try(MemoryStack stack = MemoryStack.stackPush()){
+    try (MemoryStack stack = MemoryStack.stackPush()) {
 
       IntBuffer width = stack.mallocInt(1);
       IntBuffer height = stack.mallocInt(1);
@@ -87,9 +85,9 @@ public class ByteCacheTest {
   }
 
   @Test
-  public void asShortBufferTest(){
+  public void asShortBufferTest() {
     ByteBuffer matmapBuffer = BufferUtils.createByteBuffer(1024 * 1024);
-    try(MemoryStack stack = MemoryStack.stackPush()){
+    try (MemoryStack stack = MemoryStack.stackPush()) {
       IntBuffer width = stack.mallocInt(1);
       IntBuffer height = stack.mallocInt(1);
       IntBuffer channels = stack.mallocInt(1);
@@ -98,8 +96,8 @@ public class ByteCacheTest {
       String filePath = heightmapFile.getAbsolutePath();
       matmapBuffer = STBImage.stbi_load(filePath, width, height, channels, 1);
 
-      System.out.println(matmapBuffer.get(126 + 1024*443));
+      System.out.println(matmapBuffer.get(126 + 1024 * 443));
     }
   }
-  
+
 }

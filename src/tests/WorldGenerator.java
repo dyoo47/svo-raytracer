@@ -8,12 +8,12 @@ import src.engine.*;
 public class WorldGenerator extends Application {
 
   @Test
-  public void test(){
+  public void test() {
     launch(new WorldGenerator());
   }
 
   @Override
-  public void preRun(){
+  public void preRun() {
     Material.initMaterials();
     Renderer renderer = Renderer.getInstance();
     int chunkSize = Constants.CHUNK_SIZE;
@@ -23,12 +23,12 @@ public class WorldGenerator extends Application {
     int materialTexture = renderer.add2DTexture(5, GL_R8I, textureSize, textureSize);
     System.out.println("Added textures");
 
-    // Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
+    // Renderer.Shader chunkGenShader = renderer.addShader("chunkgen",
+    // "src/shaders/chunkgen.comp");
     Renderer.Shader heightmapShader = renderer.addShader("heightmap", "src/shaders/chunkgen-heightmap.comp");
     System.out.println("Added shaders");
 
     renderer.printGLErrors();
-
 
     Octree eo = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
     // eo.constructCompleteOctree(chunkGenShader, voxelTexture);
@@ -39,7 +39,7 @@ public class WorldGenerator extends Application {
 
   @Override
   public void updateEarly() {
-    
+
   }
 
   @Override

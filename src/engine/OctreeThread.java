@@ -2,14 +2,14 @@ package src.engine;
 
 import java.nio.ByteBuffer;
 
-public class OctreeThread extends Thread{
+public class OctreeThread extends Thread {
 
   Octree octree;
   int[] parentPos;
   ByteBuffer voxelBuffer;
   int maxLOD;
 
-  public OctreeThread(int[] parentPos, ByteBuffer voxelBuffer, int maxLOD){
+  public OctreeThread(int[] parentPos, ByteBuffer voxelBuffer, int maxLOD) {
     this.maxLOD = maxLOD;
     this.parentPos = parentPos;
     this.voxelBuffer = voxelBuffer;
@@ -21,5 +21,5 @@ public class OctreeThread extends Thread{
     octree.createDummyHead();
     octree.constructInnerOctree(512, 0, maxLOD, parentPos, 0, voxelBuffer);
   }
-  
+
 }
