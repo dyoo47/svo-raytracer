@@ -18,7 +18,7 @@ public class MaterialTextureGenerator extends Application {
 
   @Test
   public void test() {
-    Configuration.STACK_SIZE.set(3072); // This is in kb
+    Configuration.STACK_SIZE.set(801200); // This is in kb
     launch(new MaterialTextureGenerator());
   }
 
@@ -26,10 +26,10 @@ public class MaterialTextureGenerator extends Application {
   public void preRun() {
 
     Material.initMaterials();
-    int textureSize = 1024;
+    int textureSize = 8192;
     boolean generateVisual = true;
-    String outputPath = "./assets/matmaps/materials.png";
-    String outputVisPath = "./assets/matmaps/materials.vis.png";
+    String outputPath = "./assets/matmaps/nz/materials.png";
+    String outputVisPath = "./assets/matmaps/nz/materials.vis.png";
 
     ByteBuffer combinedBuffer;
     ByteBuffer visualBuffer = null;

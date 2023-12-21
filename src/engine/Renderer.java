@@ -80,13 +80,13 @@ public class Renderer {
   public void buffer2DTexture(int texture, int unit, int width, int height, ShortBuffer buffer) {
     activateTextureUnit(unit);
     bind2DTexture(texture);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_UNSIGNED_SHORT, buffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED_INTEGER, GL_UNSIGNED_SHORT, buffer);
   }
 
   public void buffer2DTexture(int texture, int unit, int width, int height, ByteBuffer buffer) {
     activateTextureUnit(unit);
     bind2DTexture(texture);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024, GL_RED_INTEGER, GL_BYTE, buffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED_INTEGER, GL_BYTE, buffer);
   }
 
   public void bind3DTexture(int texture) {

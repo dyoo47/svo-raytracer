@@ -40,8 +40,8 @@ public class Material {
     materials = new Material[Constants.MAX_MATERIALS];
     numMats = 0;
     materials[0] = new Material((byte) numMats++, "air", 1);
-    materials[1] = new Material((byte) numMats++, "stone", 1, "./assets/matmaps/stone.png");
-    materials[2] = new Material((byte) numMats++, "scree", 1, "./assets/matmaps/scree.png");
-    materials[3] = new Material((byte) numMats++, "grass", 1, "./assets/matmaps/grass.png");
+    materials[1] = new Material((byte) numMats++, "stone", 1, "./assets/matmaps/nz/stone.png");
+    materials[2] = new Material((byte) numMats++, "scree", 1, "./assets/matmaps/nz/scree.png");
+    materials[3] = new Material((byte) numMats++, "grass", 1, "./assets/matmaps/nz/grass.png");
   }
 }

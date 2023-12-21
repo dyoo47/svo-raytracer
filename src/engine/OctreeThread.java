@@ -13,7 +13,7 @@ public class OctreeThread extends Thread {
     this.maxLOD = maxLOD;
     this.parentPos = parentPos;
     this.voxelBuffer = voxelBuffer;
-    octree = new Octree(Constants.OCTREE_MEMORY_SIZE_KB / 8);
+    octree = new Octree(Constants.SUB_OCTREE_MEMORY_SIZE_KB);
   }
 
   @Override

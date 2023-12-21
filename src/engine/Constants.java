@@ -8,7 +8,8 @@ public class Constants {
   public static final float CAMERA_SENSITIVITY = 0.002f;
   public static final float CAMERA_LOWER_LIMIT = -1.570f;
   public static final float CAMERA_UPPER_LIMIT = 1.570f;
-  public static final int OCTREE_MEMORY_SIZE_KB = 1000000;
+  public static final int OCTREE_MEMORY_SIZE_KB = 2000000; // ~2GB
+  public static final int SUB_OCTREE_MEMORY_SIZE_KB = 125000; // ~125MB
   public static final int COMPUTE_GROUP_SIZE = 8;
   public static final int CHUNK_SIZE = 1024;
   public static final int MAX_MATERIALS = 256;

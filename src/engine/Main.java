@@ -39,6 +39,7 @@ public class Main extends Application {
   int voxelPointer;
 
   boolean dirty = false;
+  boolean showDebugWindow = true;
 
   @Override
   protected void preRun() {
@@ -190,6 +191,9 @@ public class Main extends Application {
     if (Input.keyPressed(Input.READ_WORLD)) {
       octree.readBufferFromFile("level1.svo");
     }
+    if (Input.keyPressed(Input.TOGGLE_DEBUG_WINDOW)) {
+      showDebugWindow = !showDebugWindow;
+    }
     if (Input.keyDown(Input.RENDER_MODE_ZERO)) {
       renderMode = 0;
       frameNumber = 0;
@@ -254,14 +258,16 @@ public class Main extends Application {
 
   @Override
   public void drawUi() {
-    ImGui.text("Render Mode: " + renderMode);
-    ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", "
-        + String.format("%.3f", cam.pos[2]));
-    ImGui.text("Octree Size: " + lastOffset + " bytes");
-    ImGui.text("Frame Time: " + frameTime + " ms");
-    ImGui.text("Texture Width: " + frameWidth[0]);
-    ImGui.text("Texture Height: " + frameHeight[0]);
-    ImGui.text("Voxel Pointer: " + voxelPointer);
+    if (showDebugWindow) {
+      ImGui.text("Render Mode: " + renderMode);
+      ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", "
+          + String.format("%.3f", cam.pos[2]));
+      ImGui.text("Octree Size: " + lastOffset + " bytes");
+      ImGui.text("Frame Time: " + frameTime + " ms");
+      ImGui.text("Texture Width: " + frameWidth[0]);
+      ImGui.text("Texture Height: " + frameHeight[0]);
+      ImGui.text("Voxel Pointer: " + voxelPointer);
+    }
     // ImGui.text("Request Buffer [0]: " +
     // Integer.toString(octreeStreamer.requestBuffer.get(0)));
     // ImGui.text("Request Buffer [1]: " +

@@ -1,6 +1,8 @@
 package src.tests;
 
 import org.junit.Test;
+import org.lwjgl.system.Configuration;
+
 import static org.lwjgl.opengl.GL43C.*;
 
 import src.engine.*;
@@ -9,6 +11,7 @@ public class WorldGenerator extends Application {
 
   @Test
   public void test() {
+    Configuration.STACK_SIZE.set(1501200); // This is in kb
     launch(new WorldGenerator());
   }
 
@@ -17,14 +20,13 @@ public class WorldGenerator extends Application {
     Material.initMaterials();
     Renderer renderer = Renderer.getInstance();
     int chunkSize = Constants.CHUNK_SIZE;
-    int textureSize = 1024;
+    int textureSize = 8192;
     int voxelTexture = renderer.add3DTexture(3, GL_R8I, chunkSize, chunkSize, chunkSize);
     int heightmapTexture = renderer.add2DTexture(4, GL_R16UI, textureSize, textureSize);
     int materialTexture = renderer.add2DTexture(5, GL_R8I, textureSize, textureSize);
     System.out.println("Added textures");
 
-    // Renderer.Shader chunkGenShader = renderer.addShader("chunkgen",
-    // "src/shaders/chunkgen.comp");
+    Renderer.Shader chunkGenShader = renderer.addShader("chunkgen", "src/shaders/chunkgen.comp");
     Renderer.Shader heightmapShader = renderer.addShader("heightmap", "src/shaders/chunkgen-heightmap.comp");
     System.out.println("Added shaders");
 

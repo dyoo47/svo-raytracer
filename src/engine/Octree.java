@@ -166,20 +166,24 @@ public class Octree {
       IntBuffer height = stack.mallocInt(1);
       IntBuffer channels = stack.mallocInt(1);
 
-      File heightmapFile = new File("./assets/heightmaps/nz.png");
+      File heightmapFile = new File("./assets/heightmaps/nzbig.png");
       String heightmapFilePath = heightmapFile.getAbsolutePath();
       heightmapBuffer = STBImage.stbi_load_16(heightmapFilePath, width, height, channels, 1);
       if (heightmapBuffer == null) {
         throw new Exception("Can't load file " + STBImage.stbi_failure_reason());
+      } else {
+        System.out.println("Successfully loaded heightmap of size " + width.get(0));
       }
       renderer.buffer2DTexture(heightmapTexture, 4, width.get(0), height.get(0), heightmapBuffer);
       STBImage.stbi_image_free(heightmapBuffer);
 
-      File matmapFile = new File("./assets/matmaps/materials.png");
+      File matmapFile = new File("./assets/matmaps/nz/materials.png");
       String matmapFilePath = matmapFile.getAbsolutePath();
       matmapBuffer = STBImage.stbi_load(matmapFilePath, width, height, channels, 1);
       if (matmapBuffer == null) {
         throw new Exception("Can't load file " + STBImage.stbi_failure_reason());
+      } else {
+        System.out.println("Successfully loaded materialmap of size " + width.get(0));
       }
       renderer.buffer2DTexture(materialTexture, 5, width.get(0), height.get(0), matmapBuffer);
       STBImage.stbi_image_free(matmapBuffer);
@@ -188,12 +192,12 @@ public class Octree {
       e.printStackTrace();
     }
 
-    int[] rootPos = { 0, -1024, 0 };
+    int[] rootPos = { 0, 0, 0 };
     // construct root
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 1;
+    int chunkLevel = 3;
 
     // should calculate this from chunk level
     int worldSize = 2048;
@@ -205,6 +209,7 @@ public class Octree {
     int half = worldSize / 2;
     int[] playerPos = { rootPos[0] + half, rootPos[1] + half, rootPos[2] + half };
     System.out.println("Simulated Player Pos: " + playerPos[0] + ", " + playerPos[1] + ", " + playerPos[2]);
+
     for (Chunk chunk : chunks) {
       ind++;
       int dist = Math.max(
@@ -317,7 +322,7 @@ public class Octree {
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 1;
+    int chunkLevel = 2;
 
     // should calculate this from chunk level
     int worldSize = 2048;
