@@ -6,7 +6,8 @@ Features:
  - Real-time pathtraced GI
  - Up to 2048^3 voxel resolution
  - Multi-threaded world generation
-
+ - 
+![nzbig](https://github.com/dyoo47/svo-raytracer/assets/34610019/9cf77dd4-1cfc-4f0a-a6e9-167ee0960fb6)
 ![mirrorblobs](https://user-images.githubusercontent.com/34610019/152625682-f5c9907c-8f21-4df4-8cae-b2030b4c77fd.png)
 ![diffusecave](https://user-images.githubusercontent.com/34610019/152625691-df326ccf-974d-4f6f-8855-28efb2e174d2.png)
 ![bluegreen](https://user-images.githubusercontent.com/34610019/118948016-be657b80-b90c-11eb-9128-9fbd6fb22f8d.png)
