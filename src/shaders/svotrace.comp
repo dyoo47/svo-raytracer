@@ -590,17 +590,18 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       matcolor.b = lambdab * matcolor.b + (1 - lambdab) * fogColor.g;
       
       // Shadow ray
-      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, true)){
-        if(res.depth < 12){
-          if(res.t > res.scale * 4){
-            matcolor -= vec3(0.2f);
-          }
-        }else{
-          matcolor -= vec3(0.2f);
-        }
-      }else{
+      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, false) && res.t > res.scale * 4){
+        // if(res.depth < 12){
+        //   if(res.t > res.scale * 4){
+        //     matcolor -= vec3(0.2f);
+        //   }
+        // }else{
+        //   matcolor -= vec3(0.2f);
+        // }
+        matcolor -= vec3(0.2f);
+      }else if(res.iter > 260){
         // Penumbra
-        // matcolor -= vec3(0.0002f) * 1.0f/(res.scale * 1.0f);
+        matcolor -= vec3(0.05f) * res.iter / 100.0f;
       }
 
 
