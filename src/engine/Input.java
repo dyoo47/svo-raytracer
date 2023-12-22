@@ -33,6 +33,7 @@ public class Input {
     public static final int READ_WORLD = GLFW_KEY_9;
 
     public static final int TOGGLE_DEBUG_WINDOW = GLFW_KEY_GRAVE_ACCENT;
+    public static final int TOGGLE_USE_BEAM = GLFW_KEY_BACKSLASH;
 
     static long window;
     static double prevX;

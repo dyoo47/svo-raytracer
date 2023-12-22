@@ -18,7 +18,6 @@ layout(location = 9) uniform int bufferEnd;
 layout(std430, binding = 10) buffer requestStorage{
   uint[] requestBuffer;
 };
-layout(location = 11) uniform bool useBeamOptimization;
 
 int endOffset = bufferEnd / 4 + 1;
 
@@ -181,7 +180,6 @@ struct castResult {
   vec3 debugColor;
   vec3 normal;
   vec3 voxelPos;
-  uint depth;
 };
 
 struct stackEntry {
@@ -260,10 +258,13 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     //   if(maxDepth < 0) maxDepth = 0;
     // }
 
-    if(t_min > 0.05f && coneTrace){
-      maxDepth = 11;
-    }
-
+    // if(t_min > 0.5f){
+    //   maxDepth = 8;
+    // }
+    
+    // if(t_min > 1.0f){
+    //   maxDepth = 7;
+    // }
     
     float tx_corner = pos.x * tx_coef - tx_bias;
     float ty_corner = pos.y * ty_coef - ty_bias;
@@ -391,7 +392,6 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   res.iter = iter;
   res.normal = norm;
   res.scale = scale_exp2;
-  res.depth = MAX_SCALE - scale;
 
   res.hitPos = origin + t_min * dir + norm * scale_exp2*2;
   // res.hitPos = origin + t_min * dir;
@@ -402,7 +402,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   if(dir.z > 0) vp.z = 3 - vp.z - scale_exp2;
   // vp += scale_exp2;
   // vp.y += scale_exp2;
-  vp += norm * scale_exp2 * 2 * 1.74;
+  vp += norm * scale_exp2 * 2 * 1.4143;
   
   res.voxelPos = vp;
   // res.hitPos = pos + vec3(scale_exp2)/2.0f;
@@ -418,10 +418,9 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 }
 
 
-vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer, out uint iter){
+vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer, out uint iter){
   castResult res;
   res.t = 2.0f;
-  origin = origin + dir * beamDist;
   bool intersect = true;
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
@@ -430,7 +429,7 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
     for(int i=0; i < 2; i++){
       bool coneTrace = false;
       if(i != 0) coneTrace = true;
-      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, coneTrace);
+      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, true);
       if(!intersect && i == 0){
         vec3 skycolor = vec3(0.6725f, 0.8784f, 1.0f);
         accum_color += skycolor - dir.y * vec3(0.4f, 0.4f, 0.25f);
@@ -572,38 +571,25 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       }
       vec3 sun_dir = normalize(vec3(0.5f, 0.5f, 0.5f));
       vec3 phong = dot(res.normal, sun_dir) * vec3(0.1f);
-      if(res.depth >= 12){
-        matcolor += phong;
-      }else{
-        matcolor += dot(vec3(0, 1.0f, 0), sun_dir) * 0.1f;
-      }
+      matcolor += phong;
 
-      float trueDist = res.t + beamDist;
-      float lambdag = exp(-0.5 * trueDist * 2);
-      float lambdab = exp(-0.5 * trueDist * 4);
-      float lambdar = exp(-0.5 * trueDist * 1);
+      float lambdar = exp(-0.5 * res.t * 1);
+      float lambdag = exp(-0.5 * res.t * 2);
+      float lambdab = exp(-0.5 * res.t * 4);
       // vec3 fogColor = vec3(0.4725f, 0.7784f, 1.0f);
       vec3 fogColor = vec3(1.0f);
       // matcolor = lambda * matcolor + (1 - lambda) * fogColor;
       matcolor.r = lambdar * matcolor.r + (1 - lambdar) * fogColor.r;
       matcolor.g = lambdag * matcolor.g + (1 - lambdag) * fogColor.b;
       matcolor.b = lambdab * matcolor.b + (1 - lambdab) * fogColor.g;
-      
+
       // Shadow ray
-      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, true)){
-        if(res.depth < 12){
-          if(res.t > res.scale * 4){
-            matcolor -= vec3(0.2f);
-          }
-        }else{
-          matcolor -= vec3(0.2f);
-        }
+      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, false)){
+        matcolor -= vec3(0.2f);
       }else{
         // Penumbra
         // matcolor -= vec3(0.0002f) * 1.0f/(res.scale * 1.0f);
       }
-
-
       
 
       // return hitpoint-1;
@@ -631,83 +617,21 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
 layout(local_size_x = 8, local_size_y = 8) in;
 void main(void) {
 
-  // requestNode();
-
-  ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+  ivec2 px = ivec2(gl_GlobalInvocationID.xy * 4);
   ivec2 size = imageSize(framebufferImage);
-  float beamDist;
-  if(useBeamOptimization){
-    beamDist = imageLoad(beambufferImage, px / 4).r;
-  }
 
-  if (any(greaterThanEqual(px, size)))
-    return;
+  if (any(greaterThanEqual(px, size))) return;
   vec2 p = (vec2(px) + vec2(0.5)) / vec2(size);
-  //vec2 p = (vec2(px) / vec2(size));
   vec3 dir = mix(mix(cam[1], cam[2], p.y), mix(cam[3], cam[4], p.y), p.x);
   
-  
   vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
-  int samples = SAMPLES;
-  float invsamples = 1.0f / SAMPLES;
-  //for(int i = 0; i < SAMPLES; i++){
-  //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
-  uint pointer = 0;
-  uint iter = 0;
-  int i = frameNumber;
-  vec3 normdir = normalize(dir);
-  if(useBeamOptimization){
-    finalcolor += trace(beamDist, camPos, normdir, 
-      px.x, px.y, frameNumber, pointer, iter);
+  castResult res;
+  float value;
+  if(intersectOctree(camPos, dir, 1.0/dir, res, MAX_DEPTH, true)){
+    value = 1.0f;
   }else{
-    finalcolor += trace(0, camPos, normdir, 
-      px.x, px.y, frameNumber, pointer, iter);
-  }
-  //}
-  // }else{
-  //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
-  //   finalcolor = imageLoad(framebufferImage, grab).xyz;
-  // }
-  vec3 tempColor = finalcolor;
-
-  //Node debugNode = extractNode(407);
-  //if(debugFlag) debugColor = vec3(0, 1, 0);
-
-  // if(imageLoad(pointerbufferImage, px).x == 55){
-  //   debugColor = vec3(1.0f, 0.0f, 0.0f);
-  // }
-  if(octreeBuffer[0] == 0){
-    debugColor = vec3(1.0f, 0.0f, 0.0f);
+    value = 0.5f;
   }
 
-  if(px.x < 10 && px.y < 10) finalcolor = debugColor;
-  //if(px.x % 8 == 0 && px.y % 8 == 0) finalcolor = debugColor;
-
-  //debug crosshair
-  // vec3 crosshairColor = vec3(0.0f, 1.0f, 1.0f);
-  // int crossWidthPx = 8;
-  // int crossHeightPx = 8;
-  // if(px.x > 960 - crossWidthPx/2 && px.x < 960 + crossWidthPx/2 && 
-  //   px.y > 540 - crossHeightPx/2 && px.y < 540 + crossHeightPx/2){
-  //   finalcolor = crosshairColor;
-  // }
-  
-  if(frameNumber > 1){
-    vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
-    if(frameNumber < MAX_FRAME_ITER){
-      finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
-    }else{
-      finalcolor = lastcolor;
-    }
-  }
-  // if(imageSample != 0){
-  //   finalcolor = vec3(imageSample, 0, 0);
-  // }else{
-  //   finalcolor = vec3(0, 1, 0);
-  // }
-  
-  imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
-  // imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
-  imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
-  // imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
+  imageStore(beambufferImage, ivec2(gl_GlobalInvocationID.xy), vec4(res.t, 0, 0, 0));
 }

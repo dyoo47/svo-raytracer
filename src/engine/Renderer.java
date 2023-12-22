@@ -120,10 +120,8 @@ public class Renderer {
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
 
-  public void addSSBO(String name, Shader shader, int bindIndex, ByteBuffer data) {
+  public void addSSBO(int bindIndex, ByteBuffer data) {
     int ssbo = glGenBuffers();
-    int blockIndex = glGetProgramResourceIndex(shader.computeProgram, GL_SHADER_STORAGE_BLOCK, name);
-    glShaderStorageBlockBinding(shader.computeProgram, blockIndex, bindIndex);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
     glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bindIndex, ssbo, 0, 3);
     glBufferData(GL_SHADER_STORAGE_BUFFER, data, GL_DYNAMIC_DRAW);

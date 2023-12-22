@@ -18,6 +18,7 @@ public class Main extends Application {
   int quadProgram;
   Renderer.Shader traceShader;
   Renderer.Shader genShader;
+  Renderer.Shader beamShader;
 
   int numGroupsX, numGroupsY;
   int renderMode, lastOffset;
@@ -30,7 +31,10 @@ public class Main extends Application {
 
   int framebuffer;
   int pointerbuffer;
+  int beambuffer;
   int voxelTexture;
+
+  int beamSquareSize = 4;
 
   ByteBuffer pixels;
   int[] frameWidth;
@@ -40,6 +44,7 @@ public class Main extends Application {
 
   boolean dirty = false;
   boolean showDebugWindow = true;
+  boolean useBeamOptimization = true;
 
   @Override
   protected void preRun() {
@@ -67,6 +72,14 @@ public class Main extends Application {
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32UI, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(1, pointerbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
 
+    if (useBeamOptimization) {
+      beambuffer = glGenTextures();
+      glBindTexture(GL_TEXTURE_2D, beambuffer);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, Constants.WINDOW_WIDTH / beamSquareSize,
+          Constants.WINDOW_HEIGHT / beamSquareSize);
+      glBindImageTexture(2, beambuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32F);
+    }
     // Create program to render framebuffer texture as fullscreen quad
     System.out.print("creating fullscreen quad...");
     quadProgram = glCreateProgram();
@@ -83,6 +96,9 @@ public class Main extends Application {
 
     // Set up compute shaders
     traceShader = renderer.addShader("svotrace", "src/shaders/svotrace.comp");
+    if (useBeamOptimization) {
+      beamShader = renderer.addShader("beamShader", "src/shaders/svobeam.comp");
+    }
 
     // Determine number of work groups to dispatch
     numGroupsX = (int) Math.ceil((double) Constants.WINDOW_WIDTH / 8);
@@ -111,14 +127,15 @@ public class Main extends Application {
     // System.out.println(testbuffer.get(0));
     // System.out.println(testbuffer.get(1));
 
-    renderer.addSSBO("requestStorage", traceShader, 10, testbuffer);
+    renderer.addSSBO(10, testbuffer);
 
     octreeStreamer = new OctreeStreamer();
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); // Get buffer and set buffer must
                                                                                    // match in size.
     // octreeStreamer.printBuffer(10);
 
-    renderer.addSSBO("shaderStorage", traceShader, 7, octree.getByteBuffer());
+    renderer.addSSBO(7, octree.getByteBuffer());
+    // renderer.bindSSBO("shaderStorage", beamShader, 7);
 
     renderMode = 0;
     lastOffset = 0;
@@ -126,8 +143,6 @@ public class Main extends Application {
 
   @Override
   public void updateEarly() {
-    renderer.useProgram(traceShader);
-    renderer.dispatchCompute(traceShader, numGroupsX, numGroupsY, 1);
 
     glBindTexture(GL_TEXTURE_2D, pointerbuffer);
     frameWidth = new int[1];
@@ -146,12 +161,6 @@ public class Main extends Application {
     voxelPointer = pixels.getInt(offset);
 
     glBindTexture(GL_TEXTURE_2D, framebuffer);
-
-    // Update frame
-    frameNumber++;
-    glUniform1i(5, frameNumber);
-    glUniform1i(6, renderMode);
-    glUniform1i(9, octree.memOffset);
 
     if (lastOffset != octree.memOffset || dirty) {
       dirty = false;
@@ -193,6 +202,10 @@ public class Main extends Application {
     }
     if (Input.keyPressed(Input.TOGGLE_DEBUG_WINDOW)) {
       showDebugWindow = !showDebugWindow;
+    }
+    if (Input.keyPressed(Input.TOGGLE_USE_BEAM)) {
+      dirty = true;
+      useBeamOptimization = !useBeamOptimization;
     }
     if (Input.keyDown(Input.RENDER_MODE_ZERO)) {
       renderMode = 0;
@@ -246,11 +259,35 @@ public class Main extends Application {
       octree.editLeafNodeValue(voxelPointer, (byte) 0);
     }
 
+    if (useBeamOptimization) {
+      renderer.useProgram(beamShader);
+      glUniform1i(9, octree.memOffset);
+      glUniform3fv(8, cam.pos);
+      glUniform3fv(1, cam.l1);
+      glUniform3fv(2, cam.l2);
+      glUniform3fv(3, cam.r1);
+      glUniform3fv(4, cam.r2);
+      renderer.dispatchCompute(beamShader, numGroupsX / beamSquareSize, numGroupsY / beamSquareSize, 1);
+    }
+    renderer.useProgram(traceShader);
+
     glUniform3fv(8, cam.pos);
     glUniform3fv(1, cam.l1);
     glUniform3fv(2, cam.l2);
     glUniform3fv(3, cam.r1);
     glUniform3fv(4, cam.r2);
+    // Update frame
+    frameNumber++;
+    glUniform1i(5, frameNumber);
+    glUniform1i(6, renderMode);
+    glUniform1i(9, octree.memOffset);
+
+    if (useBeamOptimization)
+      glUniform1i(11, 1);
+    else
+      glUniform1i(11, 0);
+
+    renderer.dispatchCompute(traceShader, numGroupsX, numGroupsY, 1);
     // Display framebuffer texture
     glUseProgram(quadProgram);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -267,6 +304,11 @@ public class Main extends Application {
       ImGui.text("Texture Width: " + frameWidth[0]);
       ImGui.text("Texture Height: " + frameHeight[0]);
       ImGui.text("Voxel Pointer: " + voxelPointer);
+      if (useBeamOptimization) {
+        ImGui.text("Beam Optimization: true");
+      } else {
+        ImGui.text("Beam Optimization: false");
+      }
     }
     // ImGui.text("Request Buffer [0]: " +
     // Integer.toString(octreeStreamer.requestBuffer.get(0)));
