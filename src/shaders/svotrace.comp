@@ -124,7 +124,7 @@ Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMas
   uint pointer = childPointer + parentPointer;
   while(i < child){
     int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
-    if(localMask == 0){ 
+    if(localMask == 0 || localMask == 2){ 
       pointer += NODE_SIZE;
     }else if(localMask == 1){
       pointer += LEAF_SIZE;
@@ -139,6 +139,8 @@ Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMas
     return extractNode(pointer);
   }else if(localMask == 1){
     return extractLeaf(pointer);
+  }else if(localMask == 2){
+    return extractNode(pointer);
   }else if(localMask == 3){
     return extractNonSurfaceLeaf(pointer);
   }
@@ -572,7 +574,7 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       }
       vec3 sun_dir = normalize(vec3(0.5f, 0.5f, 0.5f));
       vec3 phong = dot(res.normal, sun_dir) * vec3(0.1f);
-      if(res.depth >= 12){
+      if(res.depth >= 10){ //TODO: stop hardcoding this
         matcolor += phong;
       }else{
         matcolor += dot(vec3(0, 1.0f, 0), sun_dir) * 0.1f;

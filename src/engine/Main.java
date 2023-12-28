@@ -43,8 +43,8 @@ public class Main extends Application {
   int voxelPointer;
 
   boolean dirty = false;
-  boolean showDebugWindow = true;
-  boolean useBeamOptimization = true;
+  boolean showDebugWindow = false;
+  boolean useBeamOptimization = false;
 
   @Override
   protected void preRun() {
@@ -137,7 +137,7 @@ public class Main extends Application {
     renderer.addSSBO(7, octree.getByteBuffer());
     // renderer.bindSSBO("shaderStorage", beamShader, 7);
 
-    renderMode = 0;
+    renderMode = 2;
     lastOffset = 0;
   }
 

@@ -29,6 +29,7 @@ public class Octree {
   long surfaceLeafNodes = 0;
   long nonSurfaceLeafNodes = 0;
   long interiorNodes = 0;
+  long subdividableLeafNodes = 0;
 
   static final int NODE_SIZE = 7;
   static final int LEAF_SIZE = 3;
@@ -108,6 +109,19 @@ public class Octree {
 
   private int createInteriorNode(byte val) {
     interiorNodes++;
+    int pointer = memOffset;
+    buffer.put(memOffset++, val);
+    buffer.put(memOffset++, (byte) 0);
+    buffer.put(memOffset++, (byte) 0);
+    buffer.put(memOffset++, (byte) 0);
+    buffer.put(memOffset++, (byte) 0);
+    buffer.put(memOffset++, (byte) 0);
+    buffer.put(memOffset++, (byte) 0);
+    return pointer;
+  }
+
+  private int createSubdividableLeafNode(byte val) {
+    subdividableLeafNodes++;
     int pointer = memOffset;
     buffer.put(memOffset++, val);
     buffer.put(memOffset++, (byte) 0);
@@ -311,6 +325,7 @@ public class Octree {
         surfaceLeafNodes += thread.octree.surfaceLeafNodes;
         nonSurfaceLeafNodes += thread.octree.nonSurfaceLeafNodes;
         interiorNodes += thread.octree.interiorNodes;
+        subdividableLeafNodes += thread.octree.subdividableLeafNodes;
       }
 
       endTime = System.currentTimeMillis() - startTime;
@@ -436,6 +451,7 @@ public class Octree {
         surfaceLeafNodes += thread.octree.surfaceLeafNodes;
         nonSurfaceLeafNodes += thread.octree.nonSurfaceLeafNodes;
         interiorNodes += thread.octree.interiorNodes;
+        subdividableLeafNodes += thread.octree.subdividableLeafNodes;
       }
 
       endTime = System.currentTimeMillis() - startTime;
@@ -471,6 +487,13 @@ public class Octree {
     setChildPointer(parentPointer, children[0]);
   }
 
+  private enum NodeType {
+    INTERIOR,
+    SURFACE_LEAF,
+    NON_SURFACE_LEAF,
+    SUBDIVIDABLE_LEAF
+  }
+
   public void constructInnerOctree(int size, int curLOD, int maxLOD, int[] pPos, int parentPointer,
       ByteBuffer voxelData) {
 
@@ -479,6 +502,7 @@ public class Octree {
       return;
 
     int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    NodeType[] childTypes = new NodeType[8];
     int[][] cPos = new int[8][3];
     for (int n = 0; n < 8; n++) {
       cPos[n][0] = pPos[0] + childOffsets[n][0] * cSize;
@@ -490,7 +514,7 @@ public class Octree {
       byte first = getVoxel(voxelData, cPos[n][0], cPos[n][1], cPos[n][2]);
       byte value = first;
       boolean leaf = true;
-      boolean nonSurface = false;
+      NodeType nodeType = NodeType.INTERIOR;
       // if next LOD is maxLOD, then we can assume all children are leaves.
       if (curLOD + 1 != maxLOD) {
         for (int i = cPos[n][2]; i < cPos[n][2] + cSize; i++) {
@@ -520,33 +544,57 @@ public class Octree {
           NormalResult normalResult = genSurfaceNormal(cPos, n, voxelData);
           if (normalResult.exposed) {
             children[n] = createSurfaceLeafNode(value, normalResult.normal);
+            nodeType = NodeType.SURFACE_LEAF;
           } else {
             children[n] = createNonSurfaceLeafNode(value);
-            nonSurface = true;
+            nodeType = NodeType.NON_SURFACE_LEAF;
           }
         } else {
           if (checkBigNodeExposed(cPos, cSize, n, voxelData)) {
             leaf = false;
             children[n] = createInteriorNode(value);
+            nodeType = NodeType.INTERIOR;
           } else {
-            children[n] = createNonSurfaceLeafNode(value);
-            nonSurface = true;
+            // children[n] = createNonSurfaceLeafNode(value);
+            children[n] = createSubdividableLeafNode(value);
+            nodeType = NodeType.SUBDIVIDABLE_LEAF;
           }
         }
       } else if (leaf) {
         children[n] = createNonSurfaceLeafNode(value);
-        nonSurface = true;
-      } else
+        nodeType = NodeType.NON_SURFACE_LEAF;
+      } else {
         children[n] = createInteriorNode(value);
-      if (leaf)
-        leafMask |= (0x0001 << (n << 1));
-      if (nonSurface)
-        leafMask |= (0x0002 << (n << 1));
+        nodeType = NodeType.INTERIOR;
+      }
+      childTypes[n] = nodeType;
+      switch (nodeType) {
+        case SURFACE_LEAF:
+          leafMask |= (0x0001 << (n << 1));
+          break;
+        case SUBDIVIDABLE_LEAF:
+          leafMask |= (0x0002 << (n << 1));
+          break;
+        case NON_SURFACE_LEAF:
+          leafMask |= (0x0003 << (n << 1));
+        case INTERIOR:
+      }
+      // if (!subdividableLeaf) {
+      // if (leaf)
+      // leafMask |= (0x0001 << (n << 1));
+      // if (nonSurface)
+      // leafMask |= (0x0002 << (n << 1));
+      // } else {
+      // leafMask |= (0x0002 << (n << 1));
+      // }
+
     }
     setChildPointer(parentPointer, children[0]);
     setLeafMask(parentPointer, leafMask);
     for (int n = 0; n < 8; n++) {
-      if (getValue(children[n]) != 0 && (leafMask & (0x0001 << (n << 1))) == 0) {
+      // boolean notLeaf = (leafMask & (0x0001 << (n << 1))) == 0;
+      boolean notLeaf = childTypes[n] == NodeType.INTERIOR;
+      if (getValue(children[n]) != 0 && notLeaf) {
         constructInnerOctree(cSize, curLOD + 1, maxLOD, cPos[n], children[n], voxelData);
       }
     }
@@ -690,8 +738,9 @@ public class Octree {
     DecimalFormat df = new DecimalFormat("###,###,###,###,###,###");
     System.out.println("Surface Leaves: " + df.format(surfaceLeafNodes));
     System.out.println("Non-Surface Leaves: " + df.format(nonSurfaceLeafNodes));
+    System.out.println("Subdividable Leaves: " + df.format(subdividableLeafNodes));
     System.out.println("Interior Nodes: " + df.format(interiorNodes));
-    long total = surfaceLeafNodes + nonSurfaceLeafNodes + interiorNodes;
+    long total = surfaceLeafNodes + nonSurfaceLeafNodes + interiorNodes + subdividableLeafNodes;
     System.out.println("Total: " + df.format(total));
   }
 
