@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -56,8 +57,8 @@ public class Octree {
 
   public Octree(int memSizeKB) {
     bufferSize = memSizeKB * 1024;
-    // buffer = ByteBuffer.allocateDirect(bufferSize);
     buffer = BufferUtils.createByteBuffer(bufferSize);
+    buffer.order(ByteOrder.BIG_ENDIAN);
   }
   /*
    * NEW NODE STRUCTURE
