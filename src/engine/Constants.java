@@ -13,6 +13,7 @@ public class Constants {
   public static final int COMPUTE_GROUP_SIZE = 8;
   public static final int CHUNK_SIZE = 1024;
   public static final int MAX_MATERIALS = 256;
+  public static final byte DELETE_VALUE = 127;
   public static final String MAP_DIR = "./assets/";
   public static final int[][] CHILD_OFFSETS = {
       { 0, 0, 0 },

@@ -693,14 +693,14 @@ void main(void) {
   //   finalcolor = crosshairColor;
   // }
   
-  if(frameNumber > 1){
-    vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
-    if(frameNumber < MAX_FRAME_ITER){
-      finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
-    }else{
-      finalcolor = lastcolor;
-    }
-  }
+  // if(frameNumber > 1){
+  //   vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
+  //   if(frameNumber < MAX_FRAME_ITER){
+  //     finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
+  //   }else{
+  //     finalcolor = lastcolor;
+  //   }
+  // }
   // if(imageSample != 0){
   //   finalcolor = vec3(imageSample, 0, 0);
   // }else{
@@ -708,7 +708,6 @@ void main(void) {
   // }
   
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
-  // imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
-  imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
-  // imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
+  imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
+  // imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
 }

@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.lwjgl.BufferUtils;
@@ -55,7 +56,8 @@ public class Octree {
 
   public Octree(int memSizeKB) {
     bufferSize = memSizeKB * 1024;
-    buffer = ByteBuffer.allocateDirect(bufferSize);
+    // buffer = ByteBuffer.allocateDirect(bufferSize);
+    buffer = BufferUtils.createByteBuffer(bufferSize);
   }
   /*
    * NEW NODE STRUCTURE
@@ -76,8 +78,14 @@ public class Octree {
    * transparent leaf / non-surface leaf - Leaf Tag: 3
    * 0 :: value - 1 byte
    * 
-   * flagged branch (unused) - Leaf Tag: 2
+   * subdividable leaf - Leaf Tag: 2
    * 0 :: value - 1 byte
+   * 1 :: nothing - 6 bytes (must be same size as branch)
+   * 2 ::
+   * 3 ::
+   * 4 ::
+   * 5 ::
+   * 6 ::
    */
 
   public void createDummyHead() {
@@ -197,7 +205,7 @@ public class Octree {
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 3;
+    int chunkLevel = 1;
 
     // should calculate this from chunk level
     int worldSize = 2048;
@@ -322,7 +330,7 @@ public class Octree {
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 2;
+    int chunkLevel = 1;
 
     // should calculate this from chunk level
     int worldSize = 2048;
@@ -603,6 +611,32 @@ public class Octree {
       }
     }
     return exposed;
+  }
+
+  public void mergeOctree(Octree source, int[] targetPos, int[] sourcePos,
+      int sourcePointer, int targetPointer, int targetParentPointer,
+      int sourceSize, int targetSize, int targetType, int sourceType) {
+    // Compute bounding box of current source node
+    int[] sMin = sourcePos;
+    int[] sMax = { sMin[0] + sourceSize, sMin[1] + sourceSize, sMin[2] + sourceSize };
+
+    // If target node is same size and position, set it equal to source node and
+    // copy over subtree
+    if (Arrays.equals(sourcePos, targetPos) && sourceSize == targetSize) {
+
+      // Mark node for deletion upon unload
+      markNodeAsDirty(targetPointer);
+
+      // Copy over source node
+
+      // Copy over subtree
+      setChildPointer(targetParentPointer, memOffset);
+
+    }
+  }
+
+  private void markNodeAsDirty(int nodePointer) {
+    setValue(nodePointer, Constants.DELETE_VALUE);
   }
 
   public ByteBuffer getByteBuffer() {

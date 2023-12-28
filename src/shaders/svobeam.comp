@@ -614,7 +614,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
   }
 }
 
-layout(local_size_x = 8, local_size_y = 8) in;
+layout(local_size_x = 8, local_size_y = 8) in; //TODO: Stop rays before they traverse a node that does not span 4 pixels.
 void main(void) {
 
   ivec2 px = ivec2(gl_GlobalInvocationID.xy * 4);
