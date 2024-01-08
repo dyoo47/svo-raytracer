@@ -267,7 +267,7 @@ public class Main extends Application {
       dirty = true;
       System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
       SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
-      octree.useSDFBrush(sphere, (byte) 1);
+      octree.useSDFBrush(sphere, (byte) 0);
     }
 
     if (useBeamOptimization) {

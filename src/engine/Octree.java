@@ -126,7 +126,7 @@ public class Octree {
   }
 
   private int createSubdividableLeafNode(byte val) {
-    System.out.println("Creating subdividable leaf node at " + memOffset);
+    // System.out.println("Creating subdividable leaf node at " + memOffset);
     subdividableLeafNodes++;
     int pointer = memOffset;
     buffer.put(memOffset++, val);
@@ -565,14 +565,18 @@ public class Octree {
             children[n] = createInteriorNode(value);
             nodeType = NodeType.INTERIOR;
           } else {
-            // children[n] = createNonSurfaceLeafNode(value);
             children[n] = createSubdividableLeafNode(value);
             nodeType = NodeType.SUBDIVIDABLE_LEAF;
           }
         }
       } else if (leaf) {
-        children[n] = createNonSurfaceLeafNode(value);
-        nodeType = NodeType.NON_SURFACE_LEAF;
+        if (cSize == 1) {
+          children[n] = createNonSurfaceLeafNode(value);
+          nodeType = NodeType.NON_SURFACE_LEAF;
+        } else {
+          children[n] = createSubdividableLeafNode(value);
+          nodeType = NodeType.SUBDIVIDABLE_LEAF;
+        }
       } else {
         children[n] = createInteriorNode(value);
         nodeType = NodeType.INTERIOR;
@@ -695,11 +699,15 @@ public class Octree {
 
     // System.out
     // .println("Start " + currentPointer + " | size: " + size + " | pos: " + pos[0]
-    // + ", " + pos[1] + ", " + pos[2]);
-
+    // + ", " + pos[1] + ", " + pos[2] + " | isLeaf: " + isLeaf);
+    // if (value == Constants.REGEN_VALUE) {
+    // setValue(currentPointer, (byte) 1);
+    // }
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
     boolean containsAir = false;
+    int cSize = size / 2;
+    byte parentValue = getValue(parentPointer);
     int[] localPos = new int[3];
     // TODO: Optimize traversal order.
     for (int i = pos[0]; i < pos[0] + size; i++) {
@@ -728,26 +736,74 @@ public class Octree {
       if (containsVolume && containsAir)
         break;
     }
-    if (!containsVolume) {
-      // System.out.println(" Does not contain volume at node " + currentPointer);
+    if (!containsVolume || containsVolume && value == parentValue) {
       return;
     }
 
-    // If node is fully inside volume, set value then mark subtree for deletion.
-    // Then return.
-    // if (containsVolume && !containsAir) {
-    // System.out.println(" Set value of node " + currentPointer);
-    // setValue(currentPointer, (byte) 1);
-    // return;
-    // }
+    // TODO: Remove unnecessary subdivisions when placing spheres in air
+
     if (containsVolume) {
       if (isLeaf) {
-        if (!containsAir)
+        if (!containsAir) {
+          // System.out.println("Setting value");
           setValue(currentPointer, value);
+        } else {
+          // System.out.println("Subdividing node " + currentPointer + " of size " +
+          // size);
+          // int localMask = (parentLeafMask & (0x0003 << (childNumber << 1))) >>
+          // (childNumber << 1);
+          // System.out.println(localMask);
+          // switch (localMask) {
+          // case 0:
+          // System.out.println("Inner node");
+          // break;
+          // case 1:
+          // System.out.println("Maximal Leaf node");
+          // break;
+          // case 2:
+          // System.out.println("Subdividable leaf node");
+          // break;
+          // default:
+          // System.out.println("Unrecognized case");
+          // }
+          short parentLeafMask = getLeafMask(parentPointer);
+          parentLeafMask &= ~(0x0003 << (childNumber << 1));
+          setLeafMask(parentPointer, parentLeafMask);
+
+          short currentLeafMask = 0;
+
+          // Create new subdivided leaves
+          int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
+          int[][] cPos = new int[8][3];
+          for (int n = 0; n < 8; n++) {
+            cPos[n][0] = pos[0] + childOffsets[n][0] * cSize;
+            cPos[n][1] = pos[1] + childOffsets[n][1] * cSize;
+            cPos[n][2] = pos[2] + childOffsets[n][2] * cSize;
+          }
+          if (curLOD + 1 == maxLOD) {
+            // Create all children as maximal leaves
+            for (int i = 0; i < 8; i++) {
+              currentLeafMask |= (0x0001 << (i << 1));
+              children[i] = createSurfaceLeafNode(parentValue, (short) 0);
+            }
+          } else {
+            // Create all children as subdividable leaves
+            for (int i = 0; i < 8; i++) {
+              currentLeafMask |= (0x0002 << (i << 1));
+              children[i] = createSubdividableLeafNode(parentValue);
+            }
+          }
+          setLeafMask(currentPointer, currentLeafMask);
+          setChildPointer(currentPointer, children[0]);
+          for (int i = 0; i < 8; i++) {
+            useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, value,
+                curLOD + 1, maxLOD);
+          }
+        }
         return;
       } else {
         if (!containsAir) {
-          // setValue(currentPointer, (byte) 3);
+          // System.out.println("Does not contain air");
           // Set value and corresponding leaf flag to 1
           setValue(currentPointer, value);
           short parentLeafMask = getLeafMask(parentPointer);
@@ -757,8 +813,8 @@ public class Octree {
           // Generate normal if maximally subdivided
           // Mark subtree for deletion
           return;
-        } // TODO: Not setting parent pointer correctly...
-        int cSize = size / 2;
+        }
+        // System.out.println("Recursing on children");
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
             info.pos, info.isLeaf, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
@@ -782,6 +838,7 @@ public class Octree {
 
   public void forEachChild(int parentPointer, int[] pPos, int pSize, Consumer<NodeInfo> method) {
     int childPointer = getChildPointer(parentPointer);
+    // System.out.println(Integer.toBinaryString(childPointer));
     short leafMask = getLeafMask(parentPointer);
     int[][] cPos = genChildPositions(pPos, pSize / 2);
     // System.out.println(Integer.toBinaryString(0xFFFF & leafMask));
