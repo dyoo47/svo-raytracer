@@ -100,4 +100,9 @@ public class ByteCacheTest {
     }
   }
 
+  @Test
+  public void anothertest() {
+    System.out.println(Integer.toBinaryString(0xFFFF & Short.MIN_VALUE));
+  }
+
 }

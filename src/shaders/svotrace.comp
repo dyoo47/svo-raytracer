@@ -119,6 +119,22 @@ Node extractNonSurfaceLeaf(uint nodePointer){
   return ret;
 }
 
+Node extractSubdividableLeaf(uint nodePointer){
+  // if(nodePointer + 6 >= bufferEnd){
+  //   Node ret = {0, 0, 0};
+  //   return ret;
+  // }
+  uint descriptor = nodePointer;
+  Node ret = {
+    getByte(nodePointer++),
+    (getByte(nodePointer++) << 24) | (getByte(nodePointer++) << 16) | (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    descriptor,
+  };
+  ret.cp = 0;
+  return ret;
+}
+
 Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMask, out uint endPointer){
   int i = 0;
   uint pointer = childPointer + parentPointer;
@@ -140,7 +156,7 @@ Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMas
   }else if(localMask == 1){
     return extractLeaf(pointer);
   }else if(localMask == 2){
-    return extractNode(pointer);
+    return extractSubdividableLeaf(pointer);
   }else if(localMask == 3){
     return extractNonSurfaceLeaf(pointer);
   }

@@ -1,4 +1,4 @@
-package src.engine;
+package src.engine.sdf;
 
 public interface SignedDistanceField {
 

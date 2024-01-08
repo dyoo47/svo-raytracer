@@ -6,6 +6,8 @@ import java.nio.ByteBuffer;
 import org.lwjgl.BufferUtils;
 
 import imgui.ImGui;
+import src.engine.sdf.SignedDistanceField;
+import src.engine.sdf.Sphere;
 
 public class Main extends Application {
 
@@ -25,6 +27,7 @@ public class Main extends Application {
 
   Camera cam;
   Octree octree;
+  int[] voxelSpacePos;
 
   ByteBuffer buffer;
   OctreeStreamer octreeStreamer;
@@ -259,6 +262,14 @@ public class Main extends Application {
       octree.editLeafNodeValue(voxelPointer, (byte) 0);
     }
 
+    if (Input.keyPressed(Input.PUT_SPHERE)) {
+      // TODO: Don't update entire octree buffer.
+      dirty = true;
+      System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
+      SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
+      octree.useSDFBrush(sphere, (byte) 1);
+    }
+
     if (useBeamOptimization) {
       renderer.useProgram(beamShader);
       glUniform1i(9, octree.memOffset);
@@ -299,6 +310,7 @@ public class Main extends Application {
       ImGui.text("Render Mode: " + renderMode);
       ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", "
           + String.format("%.3f", cam.pos[2]));
+      ImGui.text("Voxel Space Position: " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
       ImGui.text("Octree Size: " + lastOffset + " bytes");
       ImGui.text("Frame Time: " + frameTime + " ms");
       ImGui.text("Texture Width: " + frameWidth[0]);
@@ -322,7 +334,7 @@ public class Main extends Application {
 
   @Override
   public void update() {
-
+    voxelSpacePos = Util.toVoxelSpace(cam.pos);
   }
 
   @Override

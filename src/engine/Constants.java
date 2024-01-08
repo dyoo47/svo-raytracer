@@ -27,6 +27,7 @@ public class Constants {
   };
 
   public static final int[] WORLD_OFFSET = { 0, -512, 0 };
+  public static final int WORLD_SIZE = 2048;
 
   class Math {
     public static final float PI = 3.14159265359f;

@@ -24,6 +24,8 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 
+import src.engine.sdf.SignedDistanceField;
+
 public class Octree {
   ByteBuffer buffer;
   int memOffset = 0;
@@ -124,6 +126,7 @@ public class Octree {
   }
 
   private int createSubdividableLeafNode(byte val) {
+    System.out.println("Creating subdividable leaf node at " + memOffset);
     subdividableLeafNodes++;
     int pointer = memOffset;
     buffer.put(memOffset++, val);
@@ -230,7 +233,7 @@ public class Octree {
     int chunkLevel = 1;
 
     // should calculate this from chunk level
-    int worldSize = 2048;
+    int worldSize = Constants.WORLD_SIZE;
 
     // generate octrees for each chunk
     ArrayList<Chunk> chunks = new ArrayList<Chunk>();
@@ -680,22 +683,36 @@ public class Octree {
     }
   }
 
-  // TODO: I think this is done? Look through again before testing.
-  public void useSDFBrush(SignedDistanceField sdf, int currentPointer, int size, int[] pos, boolean isLeaf,
+  public void useSDFBrush(SignedDistanceField sdf, byte value) {
+    // TODO: Don't hardcode the maxLOD.
+    int[] pos = { 0, 0, 0 };
+    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, value, 0, 11);
+  }
+
+  private void useSDFBrush(SignedDistanceField sdf, int currentPointer, int parentPointer, int childNumber, int size,
+      int[] pos, boolean isLeaf,
       byte value, int curLOD, int maxLOD) {
+
+    // System.out
+    // .println("Start " + currentPointer + " | size: " + size + " | pos: " + pos[0]
+    // + ", " + pos[1] + ", " + pos[2]);
 
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
     boolean containsAir = false;
     int[] localPos = new int[3];
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        for (int k = 0; k < size; k++) {
+    // TODO: Optimize traversal order.
+    for (int i = pos[0]; i < pos[0] + size; i++) {
+      for (int j = pos[1]; j < pos[1] + size; j++) {
+        for (int k = pos[2]; k < pos[2] + size; k++) {
           localPos[0] = i;
           localPos[1] = j;
           localPos[2] = k;
-          int dist = sdf.distance(localPos);
-          if (dist == 0) {
+          int dist = sdf.distance(localPos); // Should be floored distance
+          // if (dist < 100)
+          // System.out.println(" dist: " + dist);
+          if (dist <= 0) {
+            // System.out.println(" Found zero distance for node " + currentPointer);
             containsVolume = true;
           }
           if (dist > 0) {
@@ -711,76 +728,40 @@ public class Octree {
       if (containsVolume && containsAir)
         break;
     }
-    if (!containsVolume)
+    if (!containsVolume) {
+      // System.out.println(" Does not contain volume at node " + currentPointer);
       return;
+    }
 
     // If node is fully inside volume, set value then mark subtree for deletion.
     // Then return.
-    if (containsVolume && !containsAir) {
-      setValue(currentPointer, value);
-      Consumer<Integer> func = childPointer -> markNodeAsDirty(childPointer);
-      forEachChild(currentPointer, func);
-      return;
-    } else {
-      // If we are a leaf, subdivide and recurse on children.
-      int cSize = size / 2;
+    // if (containsVolume && !containsAir) {
+    // System.out.println(" Set value of node " + currentPointer);
+    // setValue(currentPointer, (byte) 1);
+    // return;
+    // }
+    if (containsVolume) {
       if (isLeaf) {
-        // If we are subdividable, subdivide.
-        if (curLOD < maxLOD) {
-          int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
-          int[][] cPos = new int[8][3];
-          for (int n = 0; n < 8; n++) {
-            cPos[n][0] = pos[0] + childOffsets[n][0] * cSize;
-            cPos[n][1] = pos[1] + childOffsets[n][1] * cSize;
-            cPos[n][2] = pos[2] + childOffsets[n][2] * cSize;
-          }
-          boolean childIsLeaf = false;
-          if (curLOD + 1 == maxLOD) {
-            // Create all children as maximal leaves
-            childIsLeaf = true;
-            for (int i = 0; i < 8; i++) {
-              children[i] = createSurfaceLeafNode(value, (short) 0);
-            }
-          } else {
-            // Create all children as subdividable leaves
-            for (int i = 0; i < 8; i++) {
-              children[i] = createSubdividableLeafNode(value);
-            }
-          }
-          setChildPointer(currentPointer, children[0]);
-          for (int i = 0; i < 8; i++) {
-            useSDFBrush(sdf, children[i], cSize, cPos[i], childIsLeaf, value, curLOD + 1, maxLOD);
-          }
-        } else {
-          // Else set value and return.
-          if (containsVolume)
-            setValue(currentPointer, value);
-          else
-            setValue(currentPointer, (byte) 0);
-          return;
-        }
-
+        if (!containsAir)
+          setValue(currentPointer, value);
+        return;
       } else {
-        // Else if we are not a leaf, recurse on children.
-        Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, cSize, info.pos, info.isLeaf, value,
-            curLOD + 1, maxLOD);
+        if (!containsAir) {
+          // setValue(currentPointer, (byte) 3);
+          // Set value and corresponding leaf flag to 1
+          setValue(currentPointer, value);
+          short parentLeafMask = getLeafMask(parentPointer);
+          parentLeafMask &= ~(0x0003 << (childNumber << 1));
+          parentLeafMask |= (0x0002 << (childNumber << 1));
+          setLeafMask(parentPointer, parentLeafMask);
+          // Generate normal if maximally subdivided
+          // Mark subtree for deletion
+          return;
+        } // TODO: Not setting parent pointer correctly...
+        int cSize = size / 2;
+        Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
+            info.pos, info.isLeaf, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
-      }
-    }
-  }
-
-  public void forEachChild(int parentPointer, Consumer<Integer> method) {
-    int childPointer = getChildPointer(parentPointer);
-    short leafMask = getLeafMask(parentPointer);
-    for (int i = 0; i < 8; i++) {
-      int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
-      method.accept(childPointer);
-      if (localMask == 0 || localMask == 2) {
-        childPointer += NODE_SIZE;
-      } else if (localMask == 1) {
-        childPointer += LEAF_SIZE;
-      } else if (localMask == 3) {
-        childPointer += NON_SURFACE_LEAF_SIZE;
       }
     }
   }
@@ -789,10 +770,12 @@ public class Octree {
     int pointer;
     int[] pos;
     boolean isLeaf;
+    int childNumber;
 
-    public NodeInfo(int pointer, int[] pos, boolean isLeaf) {
+    public NodeInfo(int pointer, int[] pos, int childNumber, boolean isLeaf) {
       this.pointer = pointer;
       this.pos = pos;
+      this.childNumber = childNumber;
       this.isLeaf = isLeaf;
     }
   }
@@ -801,16 +784,20 @@ public class Octree {
     int childPointer = getChildPointer(parentPointer);
     short leafMask = getLeafMask(parentPointer);
     int[][] cPos = genChildPositions(pPos, pSize / 2);
+    // System.out.println(Integer.toBinaryString(0xFFFF & leafMask));
     for (int i = 0; i < 8; i++) {
       int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
-      if (localMask == 0 || localMask == 2) {
-        method.accept(new NodeInfo(childPointer, cPos[i], false));
+      if (localMask == 0) {
+        method.accept(new NodeInfo(childPointer, cPos[i], i, false));
         childPointer += NODE_SIZE;
       } else if (localMask == 1) {
-        method.accept(new NodeInfo(childPointer, cPos[i], true));
+        method.accept(new NodeInfo(childPointer, cPos[i], i, true));
         childPointer += LEAF_SIZE;
+      } else if (localMask == 2) {
+        method.accept(new NodeInfo(childPointer, cPos[i], i, true));
+        childPointer += NODE_SIZE;
       } else if (localMask == 3) {
-        method.accept(new NodeInfo(childPointer, cPos[i], true));
+        method.accept(new NodeInfo(childPointer, cPos[i], i, true));
         childPointer += NON_SURFACE_LEAF_SIZE;
       }
     }
@@ -862,7 +849,9 @@ public class Octree {
 
       ch.read(header);
       ch.read(buffer);
-      buffer.flip();
+      // buffer.flip();
+      // TODO: Find a way to just load up to memoffset, but keep the limit at max.
+      buffer.position(0);
 
       this.memOffset = header.getInt(0);
       ch.close();
