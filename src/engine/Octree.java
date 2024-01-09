@@ -748,11 +748,14 @@ public class Octree {
       if (containsVolume && containsAir && bordersVolume)
         break;
     }
-    if (!containsVolume && !bordersVolume || containsVolume && value == parentValue) {
+    if (!containsVolume && !bordersVolume || containsVolume && value == parentValue && isLeaf) {
       return;
     }
 
     if (containsVolume) {
+      if (value != 0) {
+        setValue(currentPointer, value);
+      }
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
