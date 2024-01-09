@@ -112,6 +112,11 @@ public class Octree {
     return voxelData.get(x | (y << 10) | (z << 20));
   }
 
+  public void setNormal(int surfaceLeafNode, short normal) {
+    buffer.put(surfaceLeafNode + 1, (byte) (normal));
+    buffer.put(surfaceLeafNode + 2, (byte) (normal >> 8));
+  }
+
   private int createInteriorNode(byte val) {
     interiorNodes++;
     int pointer = memOffset;
@@ -705,6 +710,7 @@ public class Octree {
     // }
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
+    boolean bordersVolume = false;
     boolean containsAir = false;
     int cSize = size / 2;
     byte parentValue = getValue(parentPointer);
@@ -723,82 +729,36 @@ public class Octree {
             // System.out.println(" Found zero distance for node " + currentPointer);
             containsVolume = true;
           }
+          if (dist <= 1) {
+            bordersVolume = true;
+          }
           if (dist > 0) {
             containsAir = true;
           }
-          k += Math.abs(dist);
-          if (containsVolume && containsAir)
+          int marchDistance = Math.abs(dist) - 2;
+          if (marchDistance < 3)
+            marchDistance = 0;
+          k += marchDistance;
+          if (containsVolume && containsAir && bordersVolume)
             break;
         }
-        if (containsVolume && containsAir)
+        if (containsVolume && containsAir && bordersVolume)
           break;
       }
-      if (containsVolume && containsAir)
+      if (containsVolume && containsAir && bordersVolume)
         break;
     }
-    if (!containsVolume || containsVolume && value == parentValue) {
+    if (!containsVolume && !bordersVolume || containsVolume && value == parentValue) {
       return;
     }
 
-    // TODO: Remove unnecessary subdivisions when placing spheres in air
-
     if (containsVolume) {
       if (isLeaf) {
-        if (!containsAir) {
-          // System.out.println("Setting value");
+        if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
         } else {
-          // System.out.println("Subdividing node " + currentPointer + " of size " +
-          // size);
-          // int localMask = (parentLeafMask & (0x0003 << (childNumber << 1))) >>
-          // (childNumber << 1);
-          // System.out.println(localMask);
-          // switch (localMask) {
-          // case 0:
-          // System.out.println("Inner node");
-          // break;
-          // case 1:
-          // System.out.println("Maximal Leaf node");
-          // break;
-          // case 2:
-          // System.out.println("Subdividable leaf node");
-          // break;
-          // default:
-          // System.out.println("Unrecognized case");
-          // }
-          short parentLeafMask = getLeafMask(parentPointer);
-          parentLeafMask &= ~(0x0003 << (childNumber << 1));
-          setLeafMask(parentPointer, parentLeafMask);
-
-          short currentLeafMask = 0;
-
-          // Create new subdivided leaves
-          int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
-          int[][] cPos = new int[8][3];
-          for (int n = 0; n < 8; n++) {
-            cPos[n][0] = pos[0] + childOffsets[n][0] * cSize;
-            cPos[n][1] = pos[1] + childOffsets[n][1] * cSize;
-            cPos[n][2] = pos[2] + childOffsets[n][2] * cSize;
-          }
-          if (curLOD + 1 == maxLOD) {
-            // Create all children as maximal leaves
-            for (int i = 0; i < 8; i++) {
-              currentLeafMask |= (0x0001 << (i << 1));
-              children[i] = createSurfaceLeafNode(parentValue, (short) 0);
-            }
-          } else {
-            // Create all children as subdividable leaves
-            for (int i = 0; i < 8; i++) {
-              currentLeafMask |= (0x0002 << (i << 1));
-              children[i] = createSubdividableLeafNode(parentValue);
-            }
-          }
-          setLeafMask(currentPointer, currentLeafMask);
-          setChildPointer(currentPointer, children[0]);
-          for (int i = 0; i < 8; i++) {
-            useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, value,
-                curLOD + 1, maxLOD);
-          }
+          subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
+              sdf);
         }
         return;
       } else {
@@ -811,6 +771,7 @@ public class Octree {
           parentLeafMask |= (0x0002 << (childNumber << 1));
           setLeafMask(parentPointer, parentLeafMask);
           // Generate normal if maximally subdivided
+
           // Mark subtree for deletion
           return;
         }
@@ -818,7 +779,49 @@ public class Octree {
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
             info.pos, info.isLeaf, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
+
       }
+    } else if (bordersVolume && size > 1 && isLeaf) {
+      subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
+          sdf);
+    }
+  }
+
+  private void subdivideNode(int parentPointer, int currentPointer, byte parentValue, byte value, int childNumber,
+      int cSize, int[] pos, int curLOD, int maxLOD,
+      SignedDistanceField sdf) {
+    short parentLeafMask = getLeafMask(parentPointer);
+    parentLeafMask &= ~(0x0003 << (childNumber << 1));
+    setLeafMask(parentPointer, parentLeafMask);
+
+    short currentLeafMask = 0;
+
+    // Create new subdivided leaves
+    int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    int[][] cPos = new int[8][3];
+    for (int n = 0; n < 8; n++) {
+      cPos[n][0] = pos[0] + childOffsets[n][0] * cSize;
+      cPos[n][1] = pos[1] + childOffsets[n][1] * cSize;
+      cPos[n][2] = pos[2] + childOffsets[n][2] * cSize;
+    }
+    if (curLOD + 1 == maxLOD) {
+      // Create all children as maximal leaves
+      for (int i = 0; i < 8; i++) {
+        currentLeafMask |= (0x0001 << (i << 1));
+        children[i] = createSurfaceLeafNode(parentValue, sdf.normal(pos, false));
+      }
+    } else {
+      // Create all children as subdividable leaves
+      for (int i = 0; i < 8; i++) {
+        currentLeafMask |= (0x0002 << (i << 1));
+        children[i] = createSubdividableLeafNode(parentValue);
+      }
+    }
+    setLeafMask(currentPointer, currentLeafMask);
+    setChildPointer(currentPointer, children[0]);
+    for (int i = 0; i < 8; i++) {
+      useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, value,
+          curLOD + 1, maxLOD);
     }
   }
 
