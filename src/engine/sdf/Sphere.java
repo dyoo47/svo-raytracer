@@ -18,9 +18,9 @@ public class Sphere implements SignedDistanceField {
   }
 
   @Override
-  public short normal(int[] pos, boolean faceInwards) {
+  public short normal(int[] pos, boolean faceOutwards) {
     int[] diff;
-    if (faceInwards) {
+    if (faceOutwards) {
       diff = Util.subtractVectors(pos, origin);
     } else {
       diff = Util.subtractVectors(origin, pos);

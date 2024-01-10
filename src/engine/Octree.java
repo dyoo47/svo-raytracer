@@ -702,18 +702,11 @@ public class Octree {
       int[] pos, boolean isLeaf, boolean subdivided,
       byte value, int curLOD, int maxLOD) {
 
-    // System.out
-    // .println("Start " + currentPointer + " | size: " + size + " | pos: " + pos[0]
-    // + ", " + pos[1] + ", " + pos[2] + " | isLeaf: " + isLeaf);
-    // if (value == Constants.REGEN_VALUE) {
-    // setValue(currentPointer, (byte) 1);
-    // }
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
     boolean bordersVolume = false;
     boolean containsAir = false;
     int cSize = size / 2;
-    byte parentValue = getValue(parentPointer);
     int[] localPos = new int[3];
     // TODO: Optimize traversal order.
     for (int i = pos[0]; i < pos[0] + size; i++) {
@@ -723,56 +716,49 @@ public class Octree {
           localPos[1] = j;
           localPos[2] = k;
           int dist = sdf.distance(localPos); // Should be floored distance
-          // if (dist < 100)
-          // System.out.println(" dist: " + dist);
+          int absoluteDist = Math.abs(dist);
           if (dist <= 0) {
-            // System.out.println(" Found zero distance for node " + currentPointer);
             containsVolume = true;
           }
-          if (dist <= 1) {
+          if (absoluteDist <= 1) {
             bordersVolume = true;
           }
           if (dist > 0) {
             containsAir = true;
           }
-          int marchDistance = Math.abs(dist) - 2;
+          int marchDistance = absoluteDist - 2;
           if (marchDistance < 3)
             marchDistance = 0;
           k += marchDistance;
-          if (containsVolume && containsAir && bordersVolume)
+          if (containsVolume && containsAir)
             break;
         }
-        if (containsVolume && containsAir && bordersVolume)
+        if (containsVolume && containsAir)
           break;
       }
-      if (containsVolume && containsAir && bordersVolume)
+      if (containsVolume && containsAir)
         break;
     }
 
-    // TODO: So we found out that some parent nodes are not getting set/traversed
-    // correctly. There must be another case where value is not being set.
-    // if (value != 0 && size < 512 && containsVolume) {
-    // setValue(currentPointer, value);
-    // }
+    // TODO: Fix unnecessary subdivisions when SDF is fully encapsulated in same
+    // material. Make sure to include separate cases for adding and subtracting.
 
-    // if (!containsVolume && !bordersVolume || containsVolume && value ==
-    // parentValue && isLeaf) {
     if (!containsVolume && !bordersVolume) {
       return;
     }
 
-    if (containsVolume) {
+    if (bordersVolume && size > 1 && isLeaf && value != 0) {
+      subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
+    } else if (containsVolume) {
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
         } else {
-          subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
-              isLeaf, sdf);
+          subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
         }
         return;
       } else {
         if (!containsAir) {
-          // System.out.println("Does not contain air");
           // Set value and corresponding leaf flag to 1
           setValue(currentPointer, value);
           short parentLeafMask = getLeafMask(parentPointer);
@@ -786,39 +772,25 @@ public class Octree {
         }
         if (value != 0)
           setValue(currentPointer, value);
-        // System.out.println("Recursing on children");
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
             info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
 
       }
     } else if (bordersVolume && size > 1 && isLeaf) {
-      subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
-          isLeaf, sdf);
+      subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
+          curLOD, maxLOD, sdf);
     }
   }
 
-  private void subdivideNode(int parentPointer, int currentPointer, byte parentValue, byte value, int childNumber,
-      int cSize, int[] pos, int curLOD, int maxLOD, boolean isLeaf,
-      SignedDistanceField sdf) {
+  private void subdivideNode(int parentPointer, int currentPointer, byte value, int childNumber,
+      int cSize, int[] pos, int curLOD, int maxLOD, SignedDistanceField sdf) {
+
     short parentLeafMask = getLeafMask(parentPointer);
     parentLeafMask &= ~(0x0003 << (childNumber << 1));
     setLeafMask(parentPointer, parentLeafMask);
-
     short currentLeafMask = 0;
 
-    // if (value != 0) {
-    // setValue(currentPointer, value);
-    // }
-    // byte newValue = parentValue;
-    // if(value != 0){
-    // if(getValue(currentPointer) == 0){
-    // newValue = value;
-    // }
-    // }
-
-    // TODO : Important: When we subdivide, we are not setting the value of the
-    // current node, which is why we are getting this error.
     byte currentValue = getValue(currentPointer);
     if (value != 0) {
 
@@ -836,7 +808,7 @@ public class Octree {
       // Create all children as maximal leaves
       for (int i = 0; i < 8; i++) {
         currentLeafMask |= (0x0001 << (i << 1));
-        children[i] = createSurfaceLeafNode(currentValue, sdf.normal(pos, false));
+        children[i] = createSurfaceLeafNode(currentValue, sdf.normal(pos, value != 0));
       }
     } else {
       // Create all children as subdividable leaves
