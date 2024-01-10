@@ -753,6 +753,9 @@ public class Octree {
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
+          // if (size == 1) { //also check node type
+          // setNormal(currentPointer, sdf.normal(pos, value != 0));
+          // }
         } else {
           subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
         }

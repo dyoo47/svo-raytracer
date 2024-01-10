@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import org.lwjgl.BufferUtils;
 
 import imgui.ImGui;
+import src.engine.sdf.Box;
 import src.engine.sdf.SignedDistanceField;
 import src.engine.sdf.Sphere;
 
@@ -264,8 +265,8 @@ public class Main extends Application {
     if (Input.keyPressed(Input.REMOVE_NODE)) {
       dirty = true;
       System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
-      SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
-      octree.useSDFBrush(sphere, (byte) 2);
+      SignedDistanceField box = new Box(voxelSpacePos, 10, 20, 30);
+      octree.useSDFBrush(box, (byte) 2);
     }
     if (Input.mouseButtonPressed(Input.SUBTRACT_SPHERE)) {
       // TODO: Don't update entire octree buffer.

@@ -16,7 +16,23 @@ public class Util {
     double ysq = Math.pow(pos0[1] - pos1[1], 2);
     double zsq = Math.pow(pos0[2] - pos1[2], 2);
     double dist = Math.sqrt(xsq + ysq + zsq);
-    return (int) dist;
+    return (int) Math.round(dist);
+  }
+
+  public static double length(int[] vec0) {
+    return Math.sqrt(
+        Math.pow(vec0[0], 2) +
+            Math.pow(vec0[1], 2) +
+            Math.pow(vec0[2], 2));
+  }
+
+  public static int[] add(int[] vec0, int scalar0) {
+    int[] sum = {
+        vec0[0] + scalar0,
+        vec0[1] + scalar0,
+        vec0[2] + scalar0,
+    };
+    return sum;
   }
 
   public static int[] subtractVectors(int[] vec0, int[] vec1) {
@@ -26,6 +42,33 @@ public class Util {
         vec0[2] - vec1[2]
     };
     return diff;
+  }
+
+  public static int[] max(int[] vec0, int[] vec1) {
+    int[] max = {
+        Math.max(vec0[0], vec1[0]),
+        Math.max(vec0[1], vec1[1]),
+        Math.max(vec0[2], vec1[2])
+    };
+    return max;
+  }
+
+  public static int[] max(int[] vec0, int scalar0) {
+    int[] max = {
+        Math.max(vec0[0], scalar0),
+        Math.max(vec0[1], scalar0),
+        Math.max(vec0[2], scalar0)
+    };
+    return max;
+  }
+
+  public static int[] min(int[] vec0, int[] vec1) {
+    int[] min = {
+        Math.min(vec0[0], vec1[0]),
+        Math.min(vec0[1], vec1[1]),
+        Math.min(vec0[2], vec1[2])
+    };
+    return min;
   }
 
   public static short packNormal(double[] normal) {
