@@ -695,11 +695,11 @@ public class Octree {
   public void useSDFBrush(SignedDistanceField sdf, byte value) {
     // TODO: Don't hardcode the maxLOD.
     int[] pos = { 0, 0, 0 };
-    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, value, 0, 11);
+    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, false, value, 0, 11);
   }
 
   private void useSDFBrush(SignedDistanceField sdf, int currentPointer, int parentPointer, int childNumber, int size,
-      int[] pos, boolean isLeaf,
+      int[] pos, boolean isLeaf, boolean subdivided,
       byte value, int curLOD, int maxLOD) {
 
     // System.out
@@ -748,20 +748,26 @@ public class Octree {
       if (containsVolume && containsAir && bordersVolume)
         break;
     }
-    if (!containsVolume && !bordersVolume || containsVolume && value == parentValue && isLeaf) {
+
+    // TODO: So we found out that some parent nodes are not getting set/traversed
+    // correctly. There must be another case where value is not being set.
+    // if (value != 0 && size < 512 && containsVolume) {
+    // setValue(currentPointer, value);
+    // }
+
+    // if (!containsVolume && !bordersVolume || containsVolume && value ==
+    // parentValue && isLeaf) {
+    if (!containsVolume && !bordersVolume) {
       return;
     }
 
     if (containsVolume) {
-      if (value != 0) {
-        setValue(currentPointer, value);
-      }
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
         } else {
           subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
-              sdf);
+              isLeaf, sdf);
         }
         return;
       } else {
@@ -775,23 +781,25 @@ public class Octree {
           setLeafMask(parentPointer, parentLeafMask);
           // Generate normal if maximally subdivided
 
-          // Mark subtree for deletion
+          // TODO: Mark subtree for deletion
           return;
         }
+        if (value != 0)
+          setValue(currentPointer, value);
         // System.out.println("Recursing on children");
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
-            info.pos, info.isLeaf, value, curLOD + 1, maxLOD);
+            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
 
       }
     } else if (bordersVolume && size > 1 && isLeaf) {
       subdivideNode(parentPointer, currentPointer, parentValue, value, childNumber, cSize, pos, curLOD, maxLOD,
-          sdf);
+          isLeaf, sdf);
     }
   }
 
   private void subdivideNode(int parentPointer, int currentPointer, byte parentValue, byte value, int childNumber,
-      int cSize, int[] pos, int curLOD, int maxLOD,
+      int cSize, int[] pos, int curLOD, int maxLOD, boolean isLeaf,
       SignedDistanceField sdf) {
     short parentLeafMask = getLeafMask(parentPointer);
     parentLeafMask &= ~(0x0003 << (childNumber << 1));
@@ -799,6 +807,23 @@ public class Octree {
 
     short currentLeafMask = 0;
 
+    // if (value != 0) {
+    // setValue(currentPointer, value);
+    // }
+    // byte newValue = parentValue;
+    // if(value != 0){
+    // if(getValue(currentPointer) == 0){
+    // newValue = value;
+    // }
+    // }
+
+    // TODO : Important: When we subdivide, we are not setting the value of the
+    // current node, which is why we are getting this error.
+    byte currentValue = getValue(currentPointer);
+    if (value != 0) {
+
+      setValue(currentPointer, value);
+    }
     // Create new subdivided leaves
     int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
     int[][] cPos = new int[8][3];
@@ -811,19 +836,19 @@ public class Octree {
       // Create all children as maximal leaves
       for (int i = 0; i < 8; i++) {
         currentLeafMask |= (0x0001 << (i << 1));
-        children[i] = createSurfaceLeafNode(parentValue, sdf.normal(pos, false));
+        children[i] = createSurfaceLeafNode(currentValue, sdf.normal(pos, false));
       }
     } else {
       // Create all children as subdividable leaves
       for (int i = 0; i < 8; i++) {
         currentLeafMask |= (0x0002 << (i << 1));
-        children[i] = createSubdividableLeafNode(parentValue);
+        children[i] = createSubdividableLeafNode(currentValue);
       }
     }
     setLeafMask(currentPointer, currentLeafMask);
     setChildPointer(currentPointer, children[0]);
     for (int i = 0; i < 8; i++) {
-      useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, value,
+      useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, true, value,
           curLOD + 1, maxLOD);
     }
   }

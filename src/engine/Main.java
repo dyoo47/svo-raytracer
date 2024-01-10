@@ -256,12 +256,17 @@ public class Main extends Application {
     } else {
       cam.setSpeed(0.0005f);
     }
-    if (Input.mouseButtonPressed(Input.REMOVE_NODE)) {
+    // if (Input.mouseButtonPressed(Input.REMOVE_NODE)) {
+    // dirty = true;
+    // System.out.println("Edited node " + voxelPointer + ".");
+    // octree.editLeafNodeValue(voxelPointer, (byte) 0);
+    // }
+    if (Input.keyPressed(Input.REMOVE_NODE)) {
       dirty = true;
-      System.out.println("Edited node " + voxelPointer + ".");
-      octree.editLeafNodeValue(voxelPointer, (byte) 0);
+      System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
+      SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
+      octree.useSDFBrush(sphere, (byte) 2);
     }
-
     if (Input.mouseButtonPressed(Input.SUBTRACT_SPHERE)) {
       // TODO: Don't update entire octree buffer.
       dirty = true;
