@@ -14,11 +14,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.IntFunction;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBImage;
@@ -670,28 +667,6 @@ public class Octree {
     return exposed;
   }
 
-  public void mergeOctree(Octree source, int[] targetPos, int[] sourcePos,
-      int sourcePointer, int targetPointer, int targetParentPointer,
-      int sourceSize, int targetSize, int targetType, int sourceType) {
-    // Compute bounding box of current source node
-    int[] sMin = sourcePos;
-    int[] sMax = { sMin[0] + sourceSize, sMin[1] + sourceSize, sMin[2] + sourceSize };
-
-    // If target node is same size and position, set it equal to source node and
-    // copy over subtree
-    if (Arrays.equals(sourcePos, targetPos) && sourceSize == targetSize) {
-
-      // Mark node for deletion upon unload
-      markNodeAsDirty(targetPointer);
-
-      // Copy over source node
-
-      // Copy over subtree
-      setChildPointer(targetParentPointer, memOffset);
-
-    }
-  }
-
   public void useSDFBrush(SignedDistanceField sdf, byte value) {
     // TODO: Don't hardcode the maxLOD.
     int[] pos = { 0, 0, 0 };
@@ -706,31 +681,34 @@ public class Octree {
     boolean containsVolume = false;
     boolean bordersVolume = false;
     boolean containsAir = false;
-    byte parentValue = getValue(parentPointer);
     int cSize = size / 2;
     int[] localPos = new int[3];
-    // TODO: Optimize traversal order.
     for (int i = pos[0]; i < pos[0] + size; i++) {
       for (int j = pos[1]; j < pos[1] + size; j++) {
         for (int k = pos[2]; k < pos[2] + size; k++) {
           localPos[0] = i;
           localPos[1] = j;
           localPos[2] = k;
-          int dist = sdf.distance(localPos); // Should be floored distance
+          int dist = sdf.distance(localPos);
           int absoluteDist = Math.abs(dist);
           if (dist <= 0) {
             containsVolume = true;
           }
-          if (absoluteDist <= 1) {
+          if (dist == 1 || dist == 0) {
             bordersVolume = true;
           }
           if (dist > 0) {
             containsAir = true;
           }
+
+          // @Hack... kinda? This snippet is for limiting the march distance so we don't
+          // miss any small features. May have to play around with these numbers in the
+          // future.
           int marchDistance = absoluteDist - 2;
-          if (marchDistance < 3)
+          if (marchDistance < Constants.MARCH_DISTANCE_MIN_CUTOFF)
             marchDistance = 0;
           k += marchDistance;
+
           if (containsVolume && containsAir)
             break;
         }
@@ -745,19 +723,24 @@ public class Octree {
       return;
     }
 
+    // @NeedsCleanup ...please clean up later, this function is a mess
+    // Whenever we see value != 0, we are checking if the operation is additive or
+    // subtractive.
+    // Case: additive operation, node borders volume - subdivide and recurse
     if (bordersVolume && size > 1 && isLeaf && value != 0) {
       subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
+
+      // Case: node does not border volume, but contains volume
     } else if (containsVolume) {
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
-          // if (size == 1) { //also check node type
-          // setNormal(currentPointer, sdf.normal(pos, value != 0));
-          // }
         } else {
           subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
         }
         return;
+
+        // Case: node has children and is not maximally explored
       } else {
         if (!containsAir) {
           // Set value and corresponding leaf flag to 1
@@ -766,9 +749,10 @@ public class Octree {
           parentLeafMask &= ~(0x0003 << (childNumber << 1));
           parentLeafMask |= (0x0002 << (childNumber << 1));
           setLeafMask(parentPointer, parentLeafMask);
-          // Generate normal if maximally subdivided
 
-          // TODO: Mark subtree for deletion
+          // Mark subtree for deletion
+          Consumer<NodeInfo> func = (info) -> markNodeAsDirty(info.pointer);
+          forEachChild(currentPointer, pos, size, func);
           return;
         }
         if (value != 0)
@@ -776,24 +760,37 @@ public class Octree {
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
             info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
         forEachChild(currentPointer, pos, size, func);
+      }
+      // Case: subtractive operation, node borders volume
+    } else if (bordersVolume && size > 1) {
+      if (isLeaf) {
+        subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
+            curLOD, maxLOD, sdf);
+      } else {
+        if (value != 0)
+          setValue(currentPointer, value);
+        Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
+            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
+        forEachChild(currentPointer, pos, size, func);
 
       }
-    } else if (bordersVolume && size > 1 && isLeaf) {
-      subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
-          curLOD, maxLOD, sdf);
     }
   }
 
   private void subdivideNode(int parentPointer, int currentPointer, byte value, int childNumber,
       int cSize, int[] pos, int curLOD, int maxLOD, SignedDistanceField sdf) {
 
+    // Check if we actually need to subdivide. If values are homogenous, no need to!
     byte currentValue = getValue(currentPointer);
     if (value == currentValue)
       return;
+
+    // For solid edits, set value of current node to value.
     if (value != 0) {
       setValue(currentPointer, value);
     }
 
+    // Clear corresponding parent leaf mask bits (mark current node as a branch)
     short parentLeafMask = getLeafMask(parentPointer);
     parentLeafMask &= ~(0x0003 << (childNumber << 1));
     setLeafMask(parentPointer, parentLeafMask);
@@ -820,6 +817,8 @@ public class Octree {
         children[i] = createSubdividableLeafNode(currentValue);
       }
     }
+
+    // Set current leaf mask and child pointer, recurse on children
     setLeafMask(currentPointer, currentLeafMask);
     setChildPointer(currentPointer, children[0]);
     for (int i = 0; i < 8; i++) {
@@ -844,10 +843,8 @@ public class Octree {
 
   public void forEachChild(int parentPointer, int[] pPos, int pSize, Consumer<NodeInfo> method) {
     int childPointer = getChildPointer(parentPointer);
-    // System.out.println(Integer.toBinaryString(childPointer));
     short leafMask = getLeafMask(parentPointer);
     int[][] cPos = genChildPositions(pPos, pSize / 2);
-    // System.out.println(Integer.toBinaryString(0xFFFF & leafMask));
     for (int i = 0; i < 8; i++) {
       int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
       if (localMask == 0) {
