@@ -36,6 +36,7 @@ public class Box implements SignedDistanceField {
 
   @Override
   public short normal(int[] pos, boolean faceOutwards) {
+    // TODO: Implement this
     int[] diff;
     if (faceOutwards) {
       diff = Util.subtractVectors(pos, origin);

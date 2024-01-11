@@ -706,6 +706,7 @@ public class Octree {
     boolean containsVolume = false;
     boolean bordersVolume = false;
     boolean containsAir = false;
+    byte parentValue = getValue(parentPointer);
     int cSize = size / 2;
     int[] localPos = new int[3];
     // TODO: Optimize traversal order.
@@ -739,9 +740,6 @@ public class Octree {
       if (containsVolume && containsAir)
         break;
     }
-
-    // TODO: Fix unnecessary subdivisions when SDF is fully encapsulated in same
-    // material. Make sure to include separate cases for adding and subtracting.
 
     if (!containsVolume && !bordersVolume) {
       return;
@@ -789,16 +787,18 @@ public class Octree {
   private void subdivideNode(int parentPointer, int currentPointer, byte value, int childNumber,
       int cSize, int[] pos, int curLOD, int maxLOD, SignedDistanceField sdf) {
 
+    byte currentValue = getValue(currentPointer);
+    if (value == currentValue)
+      return;
+    if (value != 0) {
+      setValue(currentPointer, value);
+    }
+
     short parentLeafMask = getLeafMask(parentPointer);
     parentLeafMask &= ~(0x0003 << (childNumber << 1));
     setLeafMask(parentPointer, parentLeafMask);
     short currentLeafMask = 0;
 
-    byte currentValue = getValue(currentPointer);
-    if (value != 0) {
-
-      setValue(currentPointer, value);
-    }
     // Create new subdivided leaves
     int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
     int[][] cPos = new int[8][3];
