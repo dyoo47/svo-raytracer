@@ -26,6 +26,15 @@ public class Util {
             Math.pow(vec0[2], 2));
   }
 
+  public static float[] invert(float[] vec0) {
+    float[] invert = {
+        -vec0[0],
+        -vec0[1],
+        -vec0[2]
+    };
+    return invert;
+  }
+
   public static int[] add(int[] vec0, int scalar0) {
     int[] sum = {
         vec0[0] + scalar0,
@@ -35,6 +44,28 @@ public class Util {
     return sum;
   }
 
+  public static float[] add(float[] vec0, float[] vec1) {
+    float[] sum = {
+        vec0[0] + vec1[0],
+        vec0[1] + vec1[1],
+        vec0[2] + vec1[2],
+    };
+    return sum;
+  }
+
+  public static float[] mix(float[] vec0, float[] vec1) {
+    return mix(vec0, vec1, 0.5f);
+  }
+
+  public static float[] mix(float[] vec0, float[] vec1, float a) {
+    float[] lerp = {
+        vec0[0] * (1 - a) + vec1[0] * a,
+        vec0[1] * (1 - a) + vec1[1] * a,
+        vec0[2] * (1 - a) + vec1[2] * a
+    };
+    return lerp;
+  }
+
   public static int[] subtractVectors(int[] vec0, int[] vec1) {
     int[] diff = {
         vec0[0] - vec1[0],
@@ -42,6 +73,15 @@ public class Util {
         vec0[2] - vec1[2]
     };
     return diff;
+  }
+
+  public static float[] mult(float[] vec0, float scalar0) {
+    float[] product = {
+        vec0[0] * scalar0,
+        vec0[1] * scalar0,
+        vec0[2] * scalar0
+    };
+    return product;
   }
 
   public static int[] max(int[] vec0, int[] vec1) {

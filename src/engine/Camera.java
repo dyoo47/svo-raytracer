@@ -28,6 +28,11 @@ public class Camera {
     speed = 0.005f;
   }
 
+  public int[] getRayPickLocation(float depth) {
+    float[] worldLoc = Util.add(Util.mult(Util.invert(dir), depth), pos);
+    return Util.toVoxelSpace(worldLoc);
+  }
+
   public void setSpeed(float speed) {
     this.speed = speed;
   }

@@ -1,6 +1,6 @@
 #version 430 core
 layout(binding = 0, rgba8) uniform image2D framebufferImage;
-layout(binding = 1, r32ui) uniform uimage2D pointerbufferImage;
+layout(binding = 1, r32f) uniform image2D depthbufferImage;
 layout(binding = 2, r32f) uniform image2D beambufferImage;
 layout(location = 0) uniform vec3 cam[5] = {
   vec3(0.0, 2.0, 40.0), // <- position
@@ -438,7 +438,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 }
 
 
-vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer, out uint iter){
+vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out float depth, out uint iter){
   castResult res;
   res.t = 2.0f;
   origin = origin + dir * beamDist;
@@ -535,7 +535,7 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       // mask *= dot(newdir, normal_facing);
       // velocity = min(sect, velocity);
       if(intersect){
-        pointer = res.pointer;
+        depth = res.t;
         accum_color += mask * matemi;
         mask *= matcolor;
         mask *= dot(newdir, normal_facing);
@@ -556,7 +556,7 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
         }
         accum_color += mask * ambient;
 
-        pointer = 0;
+        depth = 0.0f;
         // accum_color += mask * (skycolor + shadow * 2);
         break;
         //velocity = 0.0f; //make sequential traces not affect color so we can align computations
@@ -566,18 +566,18 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
     return accum_color;
   }else if(renderMode == 1){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
+      depth = res.t;
       iter = res.iter;
       return res.debugColor;
       //return materials[res.node.value].color;
     }else{
-      pointer = 0;
+      depth = 0.0f;
       return res.debugColor;
       //return vec3(0);
     }
   }else if(renderMode == 2){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
+      depth = res.t;
       iter = res.iter;
       //intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
       vec3 matcolor;
@@ -631,19 +631,21 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       return matcolor;
     }else{
       iter = res.iter;
-      pointer = 0;
+      depth = 0.0f;
       vec3 skycolor = vec3(0.6725f, 0.8784f, 1.0f);
       // vec3 skycolor = vec3(0.8f);
       return skycolor - dir.y * vec3(0.4f, 0.4f, 0.25f);
     }
   }else if(renderMode == 3){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
+      depth = res.t;
       iter = res.iter;
       return res.normal * 0.5f + vec3(0.5f);
+    }else{
+      depth = 0.0f;
+      iter = res.iter;
+      return vec3(0.0f);
     }
-    pointer = 0;
-    iter = res.iter;
   }else if(renderMode == 4){
     return res.voxelPos;
   }
@@ -673,16 +675,16 @@ void main(void) {
   float invsamples = 1.0f / SAMPLES;
   //for(int i = 0; i < SAMPLES; i++){
   //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
-  uint pointer = 0;
+  float depth = -1.0f;
   uint iter = 0;
   int i = frameNumber;
   vec3 normdir = normalize(dir);
   if(useBeamOptimization){
     finalcolor += trace(beamDist, camPos, normdir, 
-      px.x, px.y, frameNumber, pointer, iter);
+      px.x, px.y, frameNumber, depth, iter);
   }else{
     finalcolor += trace(0, camPos, normdir, 
-      px.x, px.y, frameNumber, pointer, iter);
+      px.x, px.y, frameNumber, depth, iter);
   }
   //}
   // }else{
@@ -728,6 +730,6 @@ void main(void) {
   // }
   
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
-  imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
+  imageStore(depthbufferImage, px, vec4(depth, 0, 0, 0));
   // imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
 }

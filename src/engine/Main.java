@@ -34,7 +34,7 @@ public class Main extends Application {
   OctreeStreamer octreeStreamer;
 
   int framebuffer;
-  int pointerbuffer;
+  int depthbuffer;
   int beambuffer;
   int voxelTexture;
 
@@ -44,7 +44,7 @@ public class Main extends Application {
   int[] frameWidth;
   int[] frameHeight;
   byte[] pixel;
-  int voxelPointer;
+  float crosshairDepth;
 
   boolean dirty = false;
   boolean showDebugWindow = false;
@@ -69,12 +69,12 @@ public class Main extends Application {
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
     glBindImageTexture(0, framebuffer, 0, false, 0, GL_WRITE_ONLY, GL_RGBA8);
 
-    // Create pointerbuffer texture to store voxel pointer data
-    pointerbuffer = glGenTextures();
-    glBindTexture(GL_TEXTURE_2D, pointerbuffer);
+    // Create depthbuffer texture to store depth data
+    depthbuffer = glGenTextures();
+    glBindTexture(GL_TEXTURE_2D, depthbuffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32UI, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
-    glBindImageTexture(1, pointerbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
+    glBindImageTexture(1, depthbuffer, 0, false, 0, GL_WRITE_ONLY, GL_R32UI);
 
     if (useBeamOptimization) {
       beambuffer = glGenTextures();
@@ -148,13 +148,13 @@ public class Main extends Application {
   @Override
   public void updateEarly() {
 
-    glBindTexture(GL_TEXTURE_2D, pointerbuffer);
+    glBindTexture(GL_TEXTURE_2D, depthbuffer);
     frameWidth = new int[1];
     frameHeight = new int[1];
     glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, frameWidth);
     glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, frameHeight);
     pixels.clear();
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, pixels);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_FLOAT, pixels);
     int row = 540 * Constants.WINDOW_WIDTH * 4;
     int col = 960 * 4;
     int offset = row + col;
@@ -162,7 +162,7 @@ public class Main extends Application {
     pixel[1] = pixels.get(1 + offset);
     pixel[2] = pixels.get(2 + offset);
     pixel[3] = pixels.get(3 + offset);
-    voxelPointer = pixels.getInt(offset);
+    crosshairDepth = pixels.getFloat(offset);
 
     glBindTexture(GL_TEXTURE_2D, framebuffer);
 
@@ -270,17 +270,19 @@ public class Main extends Application {
     }
     if (Input.mouseButtonPressed(Input.SUBTRACT_SPHERE)) {
       // TODO: Don't update entire octree buffer.
+      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
       dirty = true;
       System.out
-          .println("Subtracted sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
-      SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
+          .println("Subtracted sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
+      SignedDistanceField sphere = new Sphere(targetPos, 64);
       octree.useSDFBrush(sphere, (byte) 0);
     }
     if (Input.mouseButtonPressed(Input.PUT_SPHERE)) {
       // TODO: Don't update entire octree buffer.
+      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
       dirty = true;
-      System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
-      SignedDistanceField sphere = new Sphere(voxelSpacePos, 64);
+      System.out.println("Placed sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
+      SignedDistanceField sphere = new Sphere(targetPos, 64);
       octree.useSDFBrush(sphere, (byte) 1);
     }
 
@@ -324,12 +326,17 @@ public class Main extends Application {
       ImGui.text("Render Mode: " + renderMode);
       ImGui.text("Position: " + String.format("%.3f", cam.pos[0]) + ", " + String.format("%.3f", cam.pos[1]) + ", "
           + String.format("%.3f", cam.pos[2]));
+      ImGui.text("Rotation: " + String.format("%.3f", cam.rot[0]) + ", " + String.format("%.3f", cam.rot[1]) + ", "
+          + String.format("%.3f", cam.rot[2]));
+      ImGui.text("Rotation: " + String.format("%.3f", cam.dir[0]) + ", " + String.format("%.3f", cam.dir[1]) + ", "
+          + String.format("%.3f", cam.dir[2]));
       ImGui.text("Voxel Space Position: " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
       ImGui.text("Octree Size: " + lastOffset + " bytes");
       ImGui.text("Frame Time: " + frameTime + " ms");
       ImGui.text("Texture Width: " + frameWidth[0]);
       ImGui.text("Texture Height: " + frameHeight[0]);
-      ImGui.text("Voxel Pointer: " + voxelPointer);
+      int[] lookAtPos = cam.getRayPickLocation(crosshairDepth);
+      ImGui.text("LookAt Pos: " + lookAtPos[0] + ", " + lookAtPos[1] + ", " + lookAtPos[2]);
       if (useBeamOptimization) {
         ImGui.text("Beam Optimization: true");
       } else {
