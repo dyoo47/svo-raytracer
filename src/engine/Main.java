@@ -373,7 +373,7 @@ public class Main extends Application {
     dirty = true;
     System.out.println("Placed sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
     double startTime = System.currentTimeMillis();
-    SignedDistanceField sphere = new Sphere(targetPos, 64);
+    SignedDistanceField sphere = new Sphere(targetPos, 8);
     ChangeBounds cb = octree.useSDFBrush(sphere, (byte) value);
     double endTime = System.currentTimeMillis() - startTime;
     System.out.println("Took " + endTime + "ms");

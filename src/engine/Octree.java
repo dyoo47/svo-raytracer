@@ -690,8 +690,8 @@ public class Octree {
       changeBounds.start0 = start0;
     }
 
-    if (changeBounds.end0 < end0 + NODE_SIZE - 1 && end0 < changeBounds.start1) {
-      changeBounds.end0 = end0 + NODE_SIZE - 1;
+    if (changeBounds.end0 < end0 + NODE_SIZE && end0 < changeBounds.start1) {
+      changeBounds.end0 = end0 + NODE_SIZE;
     }
   }
 
@@ -784,6 +784,7 @@ public class Octree {
           // Update change bounds to include parent node (if not included already)
           updateExistingNodeBounds(changeBounds, parentPointer, currentPointer);
 
+          // TODO: Do bounds checking on subtree
           // Mark subtree for deletion
           Consumer<NodeInfo> func = (info) -> markNodeAsDirty(info.pointer);
           forEachChild(currentPointer, pos, size, func);
@@ -835,7 +836,7 @@ public class Octree {
     setLeafMask(parentPointer, parentLeafMask);
     short currentLeafMask = 0;
 
-    updateExistingNodeBounds(changeBounds, parentPointer, parentPointer);
+    updateExistingNodeBounds(changeBounds, parentPointer, currentPointer);
 
     // Create new subdivided leaves
     int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -865,6 +866,8 @@ public class Octree {
 
     // Update change bounds
     changeBounds.end1 = memOffset;
+
+    // Recurse on children
     for (int i = 0; i < 8; i++) {
       useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, true, value,
           curLOD + 1, maxLOD, changeBounds);
