@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import org.lwjgl.BufferUtils;
 
 import imgui.ImGui;
+import src.engine.Octree.ChangeBounds;
 import src.engine.sdf.Box;
 import src.engine.sdf.SignedDistanceField;
 import src.engine.sdf.Sphere;
@@ -115,7 +116,7 @@ public class Main extends Application {
     // world = new World(9, 1024, "blobs.svo");
     // world = new World(10, 2048);
     // world = new World(10, 2048, "debug.svo");
-    octree = new Octree(10000000);
+    octree = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
     octree.readBufferFromFile("debug.svo");
     System.out.println(" done!");
 
@@ -166,12 +167,15 @@ public class Main extends Application {
 
     glBindTexture(GL_TEXTURE_2D, framebuffer);
 
-    if (lastOffset != octree.memOffset || dirty) {
-      dirty = false;
-      frameNumber = 0;
-      lastOffset = octree.memOffset;
-      renderer.updateSSBO(7, octree.getByteBuffer());
-    }
+    // if (lastOffset != octree.memOffset || dirty) {
+    // dirty = false;
+    // frameNumber = 0;
+    // lastOffset = octree.memOffset;
+    // double startTime = System.currentTimeMillis();
+    // renderer.updateSSBO(7, octree.getByteBuffer());
+    // double endTime = System.currentTimeMillis() - startTime;
+    // System.out.println("Updated octree. Took " + endTime + " ms.");
+    // }
 
     // Update camera position
     if (Input.keyDown(Input.MOVE_FORWARD)) {
@@ -269,21 +273,10 @@ public class Main extends Application {
       octree.useSDFBrush(box, (byte) 2);
     }
     if (Input.mouseButtonPressed(Input.SUBTRACT_SPHERE)) {
-      // TODO: Don't update entire octree buffer.
-      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
-      dirty = true;
-      System.out
-          .println("Subtracted sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
-      SignedDistanceField sphere = new Sphere(targetPos, 64);
-      octree.useSDFBrush(sphere, (byte) 0);
+      placeSDF((byte) 0);
     }
     if (Input.mouseButtonPressed(Input.PUT_SPHERE)) {
-      // TODO: Don't update entire octree buffer.
-      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
-      dirty = true;
-      System.out.println("Placed sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
-      SignedDistanceField sphere = new Sphere(targetPos, 64);
-      octree.useSDFBrush(sphere, (byte) 1);
+      placeSDF((byte) 1);
     }
 
     if (useBeamOptimization) {
@@ -331,7 +324,7 @@ public class Main extends Application {
       ImGui.text("Rotation: " + String.format("%.3f", cam.dir[0]) + ", " + String.format("%.3f", cam.dir[1]) + ", "
           + String.format("%.3f", cam.dir[2]));
       ImGui.text("Voxel Space Position: " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
-      ImGui.text("Octree Size: " + lastOffset + " bytes");
+      ImGui.text("Octree Size: " + octree.memOffset + " bytes");
       ImGui.text("Frame Time: " + frameTime + " ms");
       ImGui.text("Texture Width: " + frameWidth[0]);
       ImGui.text("Texture Height: " + frameHeight[0]);
@@ -373,5 +366,22 @@ public class Main extends Application {
 
   static String fd(double value) {
     return String.format("%.0f", value);
+  }
+
+  private void placeSDF(byte value) {
+    int[] targetPos = cam.getRayPickLocation(crosshairDepth);
+    dirty = true;
+    System.out.println("Placed sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
+    double startTime = System.currentTimeMillis();
+    SignedDistanceField sphere = new Sphere(targetPos, 64);
+    ChangeBounds cb = octree.useSDFBrush(sphere, (byte) value);
+    double endTime = System.currentTimeMillis() - startTime;
+    System.out.println("Took " + endTime + "ms");
+    System.out.println("Change bounds: [" + cb.start0 + ", " + cb.end0 + "] [" + cb.start1 + ", " + cb.end1 + "]");
+    startTime = System.currentTimeMillis();
+    renderer.updateSSBO(7, octree.getByteBuffer(), cb.start0, cb.end0);
+    renderer.updateSSBO(7, octree.getByteBuffer(), cb.start1, cb.end1);
+    endTime = System.currentTimeMillis() - startTime;
+    System.out.println("Buffer update took " + endTime + " ms");
   }
 }

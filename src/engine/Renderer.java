@@ -133,6 +133,14 @@ public class Renderer {
     glBufferData(GL_SHADER_STORAGE_BUFFER, data, GL_DYNAMIC_DRAW);
   }
 
+  public void updateSSBO(int bindIndex, ByteBuffer data, int start, int end) {
+    int oldLimit = data.limit();
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, bindIndex);
+    data.limit(end).position(start);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, start, data);
+    data.limit(oldLimit);
+  }
+
   public void getSSBO(ByteBuffer buffer) {
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, buffer);
   }

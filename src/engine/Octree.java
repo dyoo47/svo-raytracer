@@ -667,15 +667,44 @@ public class Octree {
     return exposed;
   }
 
-  public void useSDFBrush(SignedDistanceField sdf, byte value) {
+  // The goal is to break any SDF edits into two buffer updates, one for changes
+  // to existing nodes and one for newly created nodes. This will likely be faster
+  // than one big update since there may be a lot of unchanged data between the
+  // two zones.
+  public class ChangeBounds {
+    int start0;
+    int end0;
+    int start1;
+    int end1;
+
+    ChangeBounds() {
+      start0 = memOffset;
+      end0 = 0;
+      start1 = memOffset;
+      end1 = memOffset;
+    }
+  }
+
+  private void updateExistingNodeBounds(ChangeBounds changeBounds, int start0, int end0) {
+    if (changeBounds.start0 > start0) {
+      changeBounds.start0 = start0;
+    }
+
+    if (changeBounds.end0 < end0 + NODE_SIZE - 1 && end0 < changeBounds.start1) {
+      changeBounds.end0 = end0 + NODE_SIZE - 1;
+    }
+  }
+
+  public ChangeBounds useSDFBrush(SignedDistanceField sdf, byte value) {
     // TODO: Don't hardcode the maxLOD.
     int[] pos = { 0, 0, 0 };
-    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, false, value, 0, 11);
+    ChangeBounds changeBounds = new ChangeBounds();
+    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, false, value, 0, 11, changeBounds);
+    return changeBounds;
   }
 
   private void useSDFBrush(SignedDistanceField sdf, int currentPointer, int parentPointer, int childNumber, int size,
-      int[] pos, boolean isLeaf, boolean subdivided,
-      byte value, int curLOD, int maxLOD) {
+      int[] pos, boolean isLeaf, boolean subdivided, byte value, int curLOD, int maxLOD, ChangeBounds changeBounds) {
 
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
@@ -728,15 +757,17 @@ public class Octree {
     // subtractive.
     // Case: additive operation, node borders volume - subdivide and recurse
     if (bordersVolume && size > 1 && isLeaf && value != 0) {
-      subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
+      subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf, changeBounds);
 
       // Case: node does not border volume, but contains volume
     } else if (containsVolume) {
       if (isLeaf) {
         if (!containsAir) { // Node is fully inside volume
           setValue(currentPointer, value);
+          updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
         } else {
-          subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf);
+          subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos, curLOD, maxLOD, sdf,
+              changeBounds);
         }
         return;
 
@@ -750,27 +781,34 @@ public class Octree {
           parentLeafMask |= (0x0002 << (childNumber << 1));
           setLeafMask(parentPointer, parentLeafMask);
 
+          // Update change bounds to include parent node (if not included already)
+          updateExistingNodeBounds(changeBounds, parentPointer, currentPointer);
+
           // Mark subtree for deletion
           Consumer<NodeInfo> func = (info) -> markNodeAsDirty(info.pointer);
           forEachChild(currentPointer, pos, size, func);
           return;
         }
-        if (value != 0)
-          setValue(currentPointer, value);
+        // if (value != 0) {
+        // // updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
+        // setValue(currentPointer, value);
+        // }
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
-            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
+            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD, changeBounds);
         forEachChild(currentPointer, pos, size, func);
       }
       // Case: subtractive operation, node borders volume
     } else if (bordersVolume && size > 1) {
       if (isLeaf) {
         subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
-            curLOD, maxLOD, sdf);
+            curLOD, maxLOD, sdf, changeBounds);
       } else {
-        if (value != 0)
-          setValue(currentPointer, value);
+        // if (value != 0) {
+        // // updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
+        // setValue(currentPointer, value);
+        // }
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
-            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD);
+            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD, changeBounds);
         forEachChild(currentPointer, pos, size, func);
 
       }
@@ -778,7 +816,7 @@ public class Octree {
   }
 
   private void subdivideNode(int parentPointer, int currentPointer, byte value, int childNumber,
-      int cSize, int[] pos, int curLOD, int maxLOD, SignedDistanceField sdf) {
+      int cSize, int[] pos, int curLOD, int maxLOD, SignedDistanceField sdf, ChangeBounds changeBounds) {
 
     // Check if we actually need to subdivide. If values are homogenous, no need to!
     byte currentValue = getValue(currentPointer);
@@ -788,6 +826,7 @@ public class Octree {
     // For solid edits, set value of current node to value.
     if (value != 0) {
       setValue(currentPointer, value);
+      updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
     }
 
     // Clear corresponding parent leaf mask bits (mark current node as a branch)
@@ -795,6 +834,8 @@ public class Octree {
     parentLeafMask &= ~(0x0003 << (childNumber << 1));
     setLeafMask(parentPointer, parentLeafMask);
     short currentLeafMask = 0;
+
+    updateExistingNodeBounds(changeBounds, parentPointer, parentPointer);
 
     // Create new subdivided leaves
     int[] children = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -821,9 +862,12 @@ public class Octree {
     // Set current leaf mask and child pointer, recurse on children
     setLeafMask(currentPointer, currentLeafMask);
     setChildPointer(currentPointer, children[0]);
+
+    // Update change bounds
+    changeBounds.end1 = memOffset;
     for (int i = 0; i < 8; i++) {
       useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, true, value,
-          curLOD + 1, maxLOD);
+          curLOD + 1, maxLOD, changeBounds);
     }
   }
 
