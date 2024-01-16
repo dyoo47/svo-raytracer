@@ -706,12 +706,15 @@ public class Octree {
   private void useSDFBrush(SignedDistanceField sdf, int currentPointer, int parentPointer, int childNumber, int size,
       int[] pos, boolean isLeaf, boolean subdivided, byte value, int curLOD, int maxLOD, ChangeBounds changeBounds) {
 
+    // TODO: @Optimization We can skip nodes if distance is greater than the
+    // diagonal length of the node.
     // Check if current node contains the volume. If not, return.
     boolean containsVolume = false;
     boolean bordersVolume = false;
     boolean containsAir = false;
     int cSize = size / 2;
     int[] localPos = new int[3];
+    int cubeDiag = (int) Math.ceil(Constants.Math.SQRT3 * size);
     for (int i = pos[0]; i < pos[0] + size; i++) {
       for (int j = pos[1]; j < pos[1] + size; j++) {
         for (int k = pos[2]; k < pos[2] + size; k++) {
@@ -720,6 +723,9 @@ public class Octree {
           localPos[2] = k;
           int dist = sdf.distance(localPos);
           int absoluteDist = Math.abs(dist);
+          if (dist > cubeDiag) {
+            return;
+          }
           if (dist <= 0) {
             containsVolume = true;
           }

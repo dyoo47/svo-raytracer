@@ -134,6 +134,10 @@ public class Renderer {
   }
 
   public void updateSSBO(int bindIndex, ByteBuffer data, int start, int end) {
+    if (start >= end) {
+      System.out.println("Update SSBO error: Invalid parameters.");
+      return;
+    }
     int oldLimit = data.limit();
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, bindIndex);
     data.limit(end).position(start);
