@@ -1,8 +1,8 @@
+package src.engine;
+
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL.createCapabilities;
 import static org.lwjgl.system.MemoryUtil.*;
-
-import java.util.Stack;
 
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL32;
@@ -21,10 +21,10 @@ public abstract class Window {
   private double startTime, endTime;
 
   protected double frameTime;
-  
-  protected void initWindow(){
+
+  protected void initWindow() {
     if (!glfwInit())
-        throw new IllegalStateException("Unable to initialize GLFW");
+      throw new IllegalStateException("Unable to initialize GLFW");
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -34,7 +34,7 @@ public abstract class Window {
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     window = glfwCreateWindow(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT, "svoraytracer", NULL, NULL);
     if (window == NULL)
-        throw new AssertionError("Failed to create the GLFW window");
+      throw new AssertionError("Failed to create the GLFW window");
 
     // Make context current and install debug message callback
     glfwMakeContextCurrent(window);
@@ -43,13 +43,13 @@ public abstract class Window {
     glfwSwapInterval(1);
     GL32.glClearColor(0f, 0f, 0f, 0f);
     glfwSetWindowTitle(window, "svo-raytracer");
-    
-    //Initialize input
+
+    // Initialize input
     Input.init(window);
     Input.setKeybinds(window);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    //Initialize ImGui stuff
+    // Initialize ImGui stuff
     initGui();
 
     // Make window visible and loop until window should be closed
@@ -57,14 +57,14 @@ public abstract class Window {
 
   }
 
-  private void initGui(){
+  private void initGui() {
     ImGui.createContext();
     imGuiGlfw.init(window, true);
     imGuiGl3.init("#version 430");
   }
 
-  protected void run(){
-    while(!glfwWindowShouldClose(window)){
+  protected void run() {
+    while (!glfwWindowShouldClose(window)) {
       startFrame();
       updateEarly();
       update();
@@ -75,11 +75,11 @@ public abstract class Window {
 
   private void clearBuffer() {
     GL32.glClearColor(0.5f, 0.5f, 0.5f, 1f);
-    //GL32.glClear(GL32.GL_COLOR_BUFFER_BIT | GL32.GL_DEPTH_BUFFER_BIT);
+    // GL32.glClear(GL32.GL_COLOR_BUFFER_BIT | GL32.GL_DEPTH_BUFFER_BIT);
     GL32.glClear(GL32.GL_COLOR_BUFFER_BIT);
   }
 
-  protected void startFrame(){
+  protected void startFrame() {
     startTime = System.currentTimeMillis();
     clearBuffer();
     imGuiGlfw.newFrame();
@@ -103,14 +103,17 @@ public abstract class Window {
     frameTime = endTime - startTime;
   }
 
-  public void destroy(){
+  public void destroy() {
     ImGui.destroyContext();
     GLFW.glfwDestroyWindow(window);
     GLFW.glfwTerminate();
   }
 
   public abstract void updateEarly();
+
   public abstract void update();
+
   public abstract void updateLate();
+
   public abstract void drawUi();
 }

@@ -1,6 +1,7 @@
 #version 430 core
 layout(binding = 0, rgba8) uniform image2D framebufferImage;
-layout(binding = 1, r32ui) uniform uimage2D pointerbufferImage;
+layout(binding = 1, r32f) uniform image2D depthbufferImage;
+layout(binding = 2, r32f) uniform image2D beambufferImage;
 layout(location = 0) uniform vec3 cam[5] = {
   vec3(0.0, 2.0, 40.0), // <- position
   vec3(-1.0, -1.0, -1.0), vec3(-1.0, 1.0, -1.0), // <- left corner directions
@@ -14,6 +15,8 @@ layout(std430, binding = 7) readonly buffer shaderStorage{
 };
 layout(location = 8) uniform vec3 camPos;
 layout(location = 9) uniform int bufferEnd;
+layout(location = 11) uniform bool useBeamOptimization;
+
 int endOffset = bufferEnd / 4 + 1;
 
 struct sphere{
@@ -28,12 +31,14 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define EPSILON 3.552713678800501e-15f
 #define CORRECTION_FACTOR 0.000001
 #define PI 3.14159265359f
+#define SQRT3 1.73205080757f
 #define SAMPLES 1
-#define NODE_SIZE 6
+#define NODE_SIZE 7
 #define LEAF_SIZE 3
+#define NON_SURFACE_LEAF_SIZE 1
 #define MAX_SCALE 23 //IDK WHY BUT THIS HAS TO BE 23 OR ELSE EVERYTHING BREAKS
-#define MAX_DEPTH 11
-#define MAX_RAYCAST_ITERATIONS 1000
+#define MAX_DEPTH 13
+#define MAX_RAYCAST_ITERATIONS 1500
 #define RENDER_SCALE 2
 #define MAX_FRAME_ITER 100
 
@@ -77,6 +82,7 @@ struct Node{
     int value;
     int cp;
     int leafMask;
+    uint descriptor;
 };
 
 Node extractNode(uint nodePointer){
@@ -84,42 +90,69 @@ Node extractNode(uint nodePointer){
   //   Node ret = {0, 0, 0};
   //   return ret;
   // }
+  uint descriptor = nodePointer;
   Node ret = {
     getByte(nodePointer++),
-    (getByte(nodePointer++) << 24) + (getByte(nodePointer++) << 16) + (getByte(nodePointer++) << 8) + getByte(nodePointer++),
-    getByte(nodePointer++),
+    (getByte(nodePointer++) << 24) | (getByte(nodePointer++) << 16) | (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    descriptor,
   };
   return ret;
 }
 
 Node extractLeaf(uint nodePointer){
-  // if(nodePointer >= bufferEnd){
-  //   Node ret = {0, 0, 0};
-  //   return ret;
-  // }
-  Node ret = {getByte(nodePointer), 0, 0};
+  Node ret = {getByte(nodePointer), 0, 0, nodePointer};
   int raw = getByte(nodePointer+1) | (getByte(nodePointer+2) << 8);
   ret.leafMask = raw;
   return ret;
 }
 
-Node extractChild(uint childPointer, uint child, int leafMask, out uint endPointer){
+Node extractNonSurfaceLeaf(uint nodePointer){
+  Node ret = {getByte(nodePointer), 0, 0, nodePointer};
+  ret.leafMask = 0;
+  return ret;
+}
+
+Node extractSubdividableLeaf(uint nodePointer){
+  // if(nodePointer + 6 >= bufferEnd){
+  //   Node ret = {0, 0, 0};
+  //   return ret;
+  // }
+  uint descriptor = nodePointer;
+  Node ret = {
+    getByte(nodePointer++),
+    (getByte(nodePointer++) << 24) | (getByte(nodePointer++) << 16) | (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    (getByte(nodePointer++) << 8) | getByte(nodePointer++),
+    descriptor,
+  };
+  ret.cp = 0;
+  return ret;
+}
+
+Node extractChild(uint parentPointer, uint childPointer, uint child, int leafMask, out uint endPointer){
   int i = 0;
-  uint pointer = childPointer;
+  uint pointer = childPointer + parentPointer;
   while(i < child){
-    if((leafMask & (0x01 << i)) == (0x01 << i)){ 
-      //debugFlag = true;
-      pointer += LEAF_SIZE;
-    }else{
+    int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
+    if(localMask == 0 || localMask == 2){ 
       pointer += NODE_SIZE;
+    }else if(localMask == 1){
+      pointer += LEAF_SIZE;
+    }else if(localMask == 3){
+      pointer += NON_SURFACE_LEAF_SIZE;
     }
     i++;
   }
   endPointer = pointer;
-  if((leafMask & (0x01 << child)) == (0x01 << child)){
-    return extractLeaf(pointer);
-  }else{
+  int localMask = (leafMask & (0x0003 << (child << 1))) >> (child << 1);
+  if(localMask == 0){
     return extractNode(pointer);
+  }else if(localMask == 1){
+    return extractLeaf(pointer);
+  }else if(localMask == 2){
+    return extractSubdividableLeaf(pointer);
+  }else if(localMask == 3){
+    return extractNonSurfaceLeaf(pointer);
   }
 }
 
@@ -153,11 +186,14 @@ struct retInfo{
 struct castResult {
   uint value;
   uint pointer;
+  uint iter;
   float t;
   vec3 hitPos;
   float scale;
   vec3 debugColor;
   vec3 normal;
+  vec3 voxelPos;
+  uint depth;
 };
 
 struct stackEntry {
@@ -185,7 +221,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
   stack_reset();
   Node parent = extractNode(0);
 
-  int iter = 0;
+  uint iter = 0;
 
   if(abs(dir.x) < EPSILON) dir.x = EPSILON * sign(dir.x);
   if(abs(dir.y) < EPSILON) dir.y = EPSILON * sign(dir.y);
@@ -236,18 +272,16 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
     //   if(maxDepth < 0) maxDepth = 0;
     // }
 
-    // if(t_min > 0.5f){
-    //   maxDepth = 8;
-    // }
-    
-    // if(t_min > 1.0f){
-    //   maxDepth = 7;
-    // }
+    if(t_min > 0.05f && coneTrace){
+      maxDepth = 11;
+    }
+
     
     float tx_corner = pos.x * tx_coef - tx_bias;
     float ty_corner = pos.y * ty_coef - ty_bias;
     float tz_corner = pos.z * tz_coef - tz_bias;
     float tc_max = min(min(tx_corner, ty_corner), tz_corner);
+
 
     child_shift = idx ^ octant_mask;
 
@@ -257,7 +291,7 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
     // if(child_descriptor < 0) debugFlag = true;
 
-    Node child = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
+    Node child = extractChild(parent.descriptor, child_descriptor, child_shift, parent.leafMask, res.pointer);
     if(child.value != 0 && t_min <= t_max){ //check if voxel exists
       // if(child.cp == 0){
       //   //res.hit = true;
@@ -344,51 +378,79 @@ bool intersectOctree(vec3 origin, vec3 dir, vec3 invdir, out castResult res, int
 
 
   vec3 norm = vec3(0.0f);
-  Node targetNode = extractChild(child_descriptor, child_shift, parent.leafMask, res.pointer);
+  Node targetNode = extractChild(parent.descriptor, child_descriptor, child_shift, parent.leafMask, res.pointer);
   if(targetNode.leafMask != 0){
     int raw = targetNode.leafMask;
     float normX = (raw % 10)-5;
     float normY = (((raw%100) - (raw%10))/10)-5;
     float normZ = ((raw - (raw%100))/100)-5;
     norm = normalize(vec3(normX, normY, normZ));
-  }else{
-    float tx_corner = tx_coef * (pos.x + scale_exp2) - tx_bias;
-    float ty_corner = ty_coef * (pos.y + scale_exp2) - ty_bias;
-    float tz_corner = tz_coef * (pos.z + scale_exp2) - tz_bias;
-    norm = (tx_corner > ty_corner && tx_corner > tz_corner)
-      ? vec3(-1, 0, 0)
-      : (ty_corner > tz_corner ? vec3(0, -1, 0) : vec3(0, 0, -1));
-
-    if((octant_mask & 1u) == 0u) norm.x = -norm.x;
-    if((octant_mask & 2u) == 0u) norm.y = -norm.y;
-    if((octant_mask & 4u) == 0u) norm.z = -norm.z;
   }
+  //TODO: Use else when size is not 1
+  // else{
+  //   float tx_corner = tx_coef * (pos.x + scale_exp2) - tx_bias;
+  //   float ty_corner = ty_coef * (pos.y + scale_exp2) - ty_bias;
+  //   float tz_corner = tz_coef * (pos.z + scale_exp2) - tz_bias;
+  //   norm = (tx_corner > ty_corner && tx_corner > tz_corner)
+  //     ? vec3(-1, 0, 0)
+  //     : (ty_corner > tz_corner ? vec3(0, -1, 0) : vec3(0, 0, -1));
+
+  //   if((octant_mask & 1u) == 0u) norm.x = -norm.x;
+  //   if((octant_mask & 2u) == 0u) norm.y = -norm.y;
+  //   if((octant_mask & 4u) == 0u) norm.z = -norm.z;
+  // }
   //TODO: Find a way to move the hitpoint to other side of voxel if we land on the backface.
   res.t = t_min;
   res.value = targetNode.value;
+  res.iter = iter;
   res.normal = norm;
   res.scale = scale_exp2;
-  res.hitPos = origin + t_min * dir + norm * scale_exp2;
+  res.depth = MAX_SCALE - scale;
+
+  res.hitPos = origin + t_min * dir + norm * scale_exp2*2;
+  // res.hitPos = origin + t_min * dir;
+
+  vec3 vp = pos;
+  if(dir.x > 0) vp.x = 3 - vp.x - scale_exp2;
+  if(dir.y > 0) vp.y = 3 - vp.y - scale_exp2;
+  if(dir.z > 0) vp.z = 3 - vp.z - scale_exp2;
+  // vp += scale_exp2;
+  // vp.y += scale_exp2;
+  vp += norm * scale_exp2 * 2 * 1.74;
+  
+  res.voxelPos = vp;
+  // res.hitPos = pos + vec3(scale_exp2)/2.0f;
+  // Round to nearest voxel center. Ideally we use the center of the voxel we hit, but not sure
+  // if we are calculating that right now.
+
+  // res.hitPos = pos;
   //res.hit = true;
-  res.debugColor = vec3(0.01) * iter;
-  //res.debugColor = vec3(0.01 * iter, 1 - 0.01 * scale, 0.0);
+  res.debugColor = vec3(0.005) * iter;
+  // res.debugColor = vec3(0.01 * iter, 1 - 0.01 * scale, 0.0);
 
   return scale < MAX_SCALE && t_min <= t_max;
 }
 
 
-vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uint pointer){
+vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out float depth, out uint iter){
   castResult res;
   res.t = 2.0f;
+  origin = origin + dir * beamDist;
   bool intersect = true;
   vec3 accum_color = vec3(0.0f, 0.0f, 0.0f);
   vec3 mask = vec3(1.0f, 1.0f, 1.0f);
   vec3 normal;
   if(renderMode == 0){
-    for(int i=0; i < 3; i++){
+    for(int i=0; i < 2; i++){
       bool coneTrace = false;
       if(i != 0) coneTrace = true;
-      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, true);
+      intersect = intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, coneTrace);
+      if(!intersect && i == 0){
+        vec3 skycolor = vec3(0.6725f, 0.8784f, 1.0f);
+        accum_color += skycolor - dir.y * vec3(0.4f, 0.4f, 0.25f);
+        break;
+      }
+      iter = res.iter;
       //if(!intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
         // if(i == 0){
         //   //velocity = vec3(0.0f);
@@ -416,7 +478,7 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       //   normal = -normal;
       // }
       //vec3 hitpoint = origin + dir * res.t + normal * res.scale;//move rays outside surface of material
-      vec3 hitpoint = res.hitPos;
+      vec3 hitpoint = res.voxelPos;
       
       //vec3 normal_facing = dot(normal, dir) < 0.0f ? normal : normal * sqrt(-1.0f);
       vec3 normal_facing = normal;
@@ -433,23 +495,32 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       vec3 axis = abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
       vec3 u = normalize(cross(axis, w));
       vec3 v = cross(w, u);
-      vec3 newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
-      //vec3 newdir = dir - 2 * dot(dir, normal) * normal; //mirror
-      //vec3 newdir = normal;
+      vec3 newdir;
 
+      // if(res.value == 1){
+      //   newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      // }else{
+      //   newdir = dir - 2 * dot(dir, normal) * normal; //mirror
+      // }
+
+      newdir = normalize(u*cos(rand1) + v*sin(rand1) + w*(1.0f - rand));//lambertian diffuse //TODO: Avoid computing this every frame.
+      //vec3 newdir = normal;
       origin = hitpoint;
       dir = newdir;
 
-      // Material mat;
-      // if(res.value == 1){
-      //   mat = materials[1];
-      // }else if(res.value == 0){
-      //   mat = materials[0];
-      // }else{
-      //   mat = materials[2];
-      // }
       vec3 matcolor = hitpoint - 1;
       vec3 matemi = vec3(0.0f);
+
+      if(res.value == 1){
+        matcolor = vec3(0.84f, 0.86f, 0.78f);
+      }
+      if(res.value == 2){
+        matcolor = vec3(0.57f, 0.5f, 0.31f);
+      }
+      if(res.value == 3){
+        matcolor = vec3(0.37f, 0.43f, 0.27f);
+      }
+
       // vec3 skycolor = vec3(5.0f);
       // int sect = int(intersect);
       // int antisect = int(!intersect);
@@ -458,14 +529,29 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
       // mask *= dot(newdir, normal_facing);
       // velocity = min(sect, velocity);
       if(intersect){
-        pointer = res.pointer;
+        depth = res.t;
         accum_color += mask * matemi;
         mask *= matcolor;
         mask *= dot(newdir, normal_facing);
       }else{
-        pointer = 0;
-        vec3 skycolor = vec3(5.0f);
-        accum_color += mask * skycolor;
+        // We can simulate sun by adding light based on direction
+
+        vec3 skycolor = vec3(7.0f);
+        vec3 ambient = vec3(1.0f);
+        // vec3 u = dir;
+        // vec3 v = normalize(vec3(0.5f, 0.5f, 0.5f));
+
+        // vec3 shadow = (dot(u, v)/dot(v, v)) * skycolor;
+
+        vec3 sun_dir = normalize(vec3(1.0f, 1.0f, 1.0f));
+        float diff = acos(dot(dir, sun_dir));
+        if(diff < 0.4f){
+          accum_color += mask * skycolor;
+        }
+        accum_color += mask * ambient;
+
+        depth = 0.0f;
+        // accum_color += mask * (skycolor + shadow * 2);
         break;
         //velocity = 0.0f; //make sequential traces not affect color so we can align computations
       }
@@ -474,38 +560,102 @@ vec3 trace(vec3 origin, vec3 dir, float seed0, float seed1, float seed2, out uin
     return accum_color;
   }else if(renderMode == 1){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
+      depth = res.t;
+      iter = res.iter;
       return res.debugColor;
       //return materials[res.node.value].color;
     }else{
-      pointer = 0;
+      depth = 0.0f;
       return res.debugColor;
       //return vec3(0);
     }
   }else if(renderMode == 2){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
-      vec3 hitpoint = origin + dir * res.t;
+      depth = res.t;
+      iter = res.iter;
       //intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false);
-      return hitpoint-1;
+      vec3 matcolor;
+      if(res.value == 1){
+        matcolor = vec3(0.84f, 0.86f, 0.78f);
+      }
+      if(res.value == 2){
+        matcolor = vec3(0.57f, 0.5f, 0.31f);
+      }
+      if(res.value == 3){
+        matcolor = vec3(0.37f, 0.43f, 0.27f);
+      }
+      vec3 sun_dir = normalize(vec3(0.5f, 0.5f, 0.5f));
+      vec3 phong = dot(res.normal, sun_dir) * vec3(0.1f);
+      if(res.depth >= 10){ //TODO: stop hardcoding this
+        matcolor += phong;
+      }else{
+        matcolor += dot(vec3(0, 1.0f, 0), sun_dir) * 0.1f;
+      }
+
+      float trueDist = res.t + beamDist;
+      float lambdag = exp(-0.5 * trueDist * 2);
+      float lambdab = exp(-0.5 * trueDist * 4);
+      float lambdar = exp(-0.5 * trueDist * 1);
+      // vec3 fogColor = vec3(0.4725f, 0.7784f, 1.0f);
+      vec3 fogColor = vec3(1.0f);
+      // matcolor = lambda * matcolor + (1 - lambda) * fogColor;
+      matcolor.r = lambdar * matcolor.r + (1 - lambdar) * fogColor.r;
+      matcolor.g = lambdag * matcolor.g + (1 - lambdag) * fogColor.b;
+      matcolor.b = lambdab * matcolor.b + (1 - lambdab) * fogColor.g;
+      
+      // Shadow ray
+      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, false) && res.t > res.scale * SQRT3){
+        // if(res.depth < 12){
+        //   if(res.t > res.scale * 4){
+        //     matcolor -= vec3(0.2f);
+        //   }
+        // }else{
+        //   matcolor -= vec3(0.2f);
+        // }
+        matcolor -= vec3(0.2f);
+      }else if(res.iter > 260){
+        // Penumbra
+        matcolor -= vec3(0.05f) * res.iter / 100.0f;
+      }
+
+
+      
+
+      // return hitpoint-1;
+      return matcolor;
     }else{
-      pointer = 0;
-      return vec3(0.0f);
+      iter = res.iter;
+      depth = 0.0f;
+      vec3 skycolor = vec3(0.6725f, 0.8784f, 1.0f);
+      // vec3 skycolor = vec3(0.8f);
+      return skycolor - dir.y * vec3(0.4f, 0.4f, 0.25f);
     }
   }else if(renderMode == 3){
     if(intersectOctree(origin, dir, 1.0/dir, res, MAX_DEPTH, false)){
-      pointer = res.pointer;
-      return res.normal;
+      depth = res.t;
+      iter = res.iter;
+      return res.normal * 0.5f + vec3(0.5f);
+    }else{
+      depth = 0.0f;
+      iter = res.iter;
+      return vec3(0.0f);
     }
-    pointer = 0;
   }else if(renderMode == 4){
+    return res.voxelPos;
   }
 }
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void main(void) {
+
+  // requestNode();
+
   ivec2 px = ivec2(gl_GlobalInvocationID.xy);
   ivec2 size = imageSize(framebufferImage);
+  float beamDist;
+  if(useBeamOptimization){
+    beamDist = imageLoad(beambufferImage, px / 4).r;
+  }
 
   if (any(greaterThanEqual(px, size)))
     return;
@@ -519,10 +669,17 @@ void main(void) {
   float invsamples = 1.0f / SAMPLES;
   //for(int i = 0; i < SAMPLES; i++){
   //if(px.x % RENDER_SCALE == 0 && px.y % RENDER_SCALE == 0){
-  uint pointer = 0;
+  float depth = -1.0f;
+  uint iter = 0;
   int i = frameNumber;
-  finalcolor += trace(camPos, normalize(dir), 
-      px.x, px.y, frameNumber, pointer);
+  vec3 normdir = normalize(dir);
+  if(useBeamOptimization){
+    finalcolor += trace(beamDist, camPos, normdir, 
+      px.x, px.y, frameNumber, depth, iter);
+  }else{
+    finalcolor += trace(0, camPos, normdir, 
+      px.x, px.y, frameNumber, depth, iter);
+  }
   //}
   // }else{
   //   ivec2 grab = ivec2(px.x - (px.x % RENDER_SCALE), px.y - (px.y % RENDER_SCALE));
@@ -536,6 +693,9 @@ void main(void) {
   // if(imageLoad(pointerbufferImage, px).x == 55){
   //   debugColor = vec3(1.0f, 0.0f, 0.0f);
   // }
+  if(octreeBuffer[0] == 0){
+    debugColor = vec3(1.0f, 0.0f, 0.0f);
+  }
 
   if(px.x < 10 && px.y < 10) finalcolor = debugColor;
   //if(px.x % 8 == 0 && px.y % 8 == 0) finalcolor = debugColor;
@@ -549,15 +709,21 @@ void main(void) {
   //   finalcolor = crosshairColor;
   // }
   
-  if(frameNumber > 1){
-    vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
-    if(frameNumber < MAX_FRAME_ITER){
-      finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
-    }else{
-      finalcolor = lastcolor;
-    }
-  }
+  // if(frameNumber > 1){
+  //   vec3 lastcolor = imageLoad(framebufferImage, px).xyz;
+  //   if(frameNumber < MAX_FRAME_ITER){
+  //     finalcolor = (frameNumber * lastcolor + finalcolor) / (frameNumber + 1);
+  //   }else{
+  //     finalcolor = lastcolor;
+  //   }
+  // }
+  // if(imageSample != 0){
+  //   finalcolor = vec3(imageSample, 0, 0);
+  // }else{
+  //   finalcolor = vec3(0, 1, 0);
+  // }
+  
   imageStore(framebufferImage, px, (vec4(finalcolor, 1.0f)));
-  imageStore(pointerbufferImage, px, uvec4(pointer, 0, 0, 0));
-  //imageStore(pointerbufferImage, px, ivec4(55, 55, 55, 55));
+  imageStore(depthbufferImage, px, vec4(depth, 0, 0, 0));
+  // imageStore(pointerbufferImage, px, uvec4(iter, 0, 0, 0));
 }

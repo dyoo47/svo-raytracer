@@ -18,3 +18,6 @@
 
 - Use pointer buffer to create Hash Map of unique voxel pointers
 - Iterate thru hash map; for each voxel calculate lighting and re-iterate thru pointer buffer, fill in corresponding values
+
+  23.5MB
+  27.19MB
