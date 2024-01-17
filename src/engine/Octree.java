@@ -703,7 +703,7 @@ public class Octree {
     marchTime = 0;
     ChangeBounds changeBounds = new ChangeBounds();
     useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, value, 0, 13, changeBounds);
-    System.out.println("March time: " + marchTime);
+    // System.out.println("March time: " + marchTime);
     return changeBounds;
   }
 

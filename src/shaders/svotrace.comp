@@ -15,9 +15,6 @@ layout(std430, binding = 7) readonly buffer shaderStorage{
 };
 layout(location = 8) uniform vec3 camPos;
 layout(location = 9) uniform int bufferEnd;
-layout(std430, binding = 10) buffer requestStorage{
-  uint[] requestBuffer;
-};
 layout(location = 11) uniform bool useBeamOptimization;
 
 int endOffset = bufferEnd / 4 + 1;
@@ -101,10 +98,6 @@ Node extractNode(uint nodePointer){
     descriptor,
   };
   return ret;
-}
-
-void requestNode(){
-  requestBuffer[0] = 12;
 }
 
 Node extractLeaf(uint nodePointer){

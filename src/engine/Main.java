@@ -32,7 +32,6 @@ public class Main extends Application {
   int[] voxelSpacePos;
 
   ByteBuffer buffer;
-  OctreeStreamer octreeStreamer;
 
   int framebuffer;
   int depthbuffer;
@@ -113,31 +112,12 @@ public class Main extends Application {
 
     // --INITIALIZE
     System.out.print("creating voxel data...");
-    // world = new World(9, 1024, "blobs.svo");
-    // world = new World(10, 2048);
-    // world = new World(10, 2048, "debug.svo");
     octree = new Octree(Constants.OCTREE_MEMORY_SIZE_KB);
     octree.readBufferFromFile("debug.svo");
     System.out.println(" done!");
 
     cam = new Camera();
     cam.setPos(1.5f, 1.5f, 2.0f);
-
-    // Create memory cache
-    ByteBuffer testbuffer = ByteBuffer.allocateDirect(Constants.REQUEST_BUFFER_SIZE_KB * 1000);
-    testbuffer.put(0, (byte) 11);
-    testbuffer.put(1, (byte) 12);
-
-    // System.out.println("test buffer:");
-    // System.out.println(testbuffer.get(0));
-    // System.out.println(testbuffer.get(1));
-
-    renderer.addSSBO(10, testbuffer);
-
-    octreeStreamer = new OctreeStreamer();
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, octreeStreamer.requestBuffer); // Get buffer and set buffer must
-                                                                                   // match in size.
-    // octreeStreamer.printBuffer(10);
 
     renderer.addSSBO(7, octree.getByteBuffer());
     // renderer.bindSSBO("shaderStorage", beamShader, 7);
@@ -261,11 +241,6 @@ public class Main extends Application {
     } else {
       cam.setSpeed(0.0005f);
     }
-    // if (Input.mouseButtonPressed(Input.REMOVE_NODE)) {
-    // dirty = true;
-    // System.out.println("Edited node " + voxelPointer + ".");
-    // octree.editLeafNodeValue(voxelPointer, (byte) 0);
-    // }
     if (Input.keyPressed(Input.REMOVE_NODE)) {
       dirty = true;
       System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
@@ -336,14 +311,6 @@ public class Main extends Application {
         ImGui.text("Beam Optimization: false");
       }
     }
-    // ImGui.text("Request Buffer [0]: " +
-    // Integer.toString(octreeStreamer.requestBuffer.get(0)));
-    // ImGui.text("Request Buffer [1]: " +
-    // Integer.toString(octreeStreamer.requestBuffer.get(1)));
-    // ImGui.text("Request Buffer [2]: " +
-    // Integer.toString(octreeStreamer.requestBuffer.get(2)));
-    // ImGui.text("Request Buffer [3]: " +
-    // Integer.toString(octreeStreamer.requestBuffer.get(3)));
   }
 
   @Override
