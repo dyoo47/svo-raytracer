@@ -4,7 +4,7 @@ Java/LWJGL pathtracer based on the paper [_Efficient Sparse Voxel Octrees_](http
 
 Features:
  - Real-time pathtraced GI
- - Up to 8196^3 voxel resolution
+ - Up to 8192^3 voxel resolution
  - Multi-threaded world generation
 
 #### Level files have been left out due to file size limits.
