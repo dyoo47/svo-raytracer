@@ -7,6 +7,8 @@ Features:
  - Up to 8196^3 voxel resolution
  - Multi-threaded world generation
 
+# Level files have been left out due to file size limits.
+
 ![nzbig](https://github.com/dyoo47/svo-raytracer/assets/34610019/9cf77dd4-1cfc-4f0a-a6e9-167ee0960fb6)
 ![mirrorblobs](https://user-images.githubusercontent.com/34610019/152625682-f5c9907c-8f21-4df4-8cae-b2030b4c77fd.png)
 ![diffusecave](https://user-images.githubusercontent.com/34610019/152625691-df326ccf-974d-4f6f-8855-28efb2e174d2.png)
