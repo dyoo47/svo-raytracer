@@ -1,13 +1,21 @@
 package src.engine.sdf;
 
-public interface SignedDistanceField {
+public abstract class SignedDistanceField {
 
-  int distance(int[] pos);
+  public int[] origin;
+  public int[] min;
+  public int[] max;
+
+  public int distance(int[] pos) {
+    return 0;
+  }
 
   /**
    * 
    * @param pos a point on or neighboring the signed distance field
    * @return the surface normal of the given point
    */
-  short normal(int[] pos, boolean faceOutwards);
+  public short normal(int[] pos, boolean faceOutwards) {
+    return (short) 0;
+  }
 }

@@ -37,6 +37,8 @@ public class Octree {
   static final int LEAF_SIZE = 3;
   static final int NON_SURFACE_LEAF_SIZE = 1;
   static final int CHUNK_SIZE = 1024;
+
+  double marchTime;
   static byte[][] childOffsets = {
       { 0, 0, 0 },
       { 1, 0, 0 },
@@ -232,7 +234,7 @@ public class Octree {
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 1;
+    int chunkLevel = 3;
 
     // should calculate this from chunk level
     int worldSize = Constants.WORLD_SIZE;
@@ -253,15 +255,15 @@ public class Octree {
 
       int maxLOD = 9;
 
-      if (dist >= 2048) {
-        maxLOD = 7;
-      }
-      if (dist >= 3072) {
-        maxLOD = 6;
-      }
-      if (dist >= 4096) {
-        maxLOD = 5;
-      }
+      // if (dist >= 2048) {
+      // maxLOD = 7;
+      // }
+      // if (dist >= 3072) {
+      // maxLOD = 6;
+      // }
+      // if (dist >= 4096) {
+      // maxLOD = 5;
+      // }
 
       System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1]
           + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist + ":" + maxLOD);
@@ -358,7 +360,7 @@ public class Octree {
     createInteriorNode((byte) 1);
 
     // create empty levels up to chunk size
-    int chunkLevel = 1;
+    int chunkLevel = 3;
 
     // should calculate this from chunk level
     int worldSize = 2048;
@@ -378,15 +380,15 @@ public class Octree {
 
       int maxLOD = 9;
 
-      if (dist >= 2048) {
-        maxLOD = 7;
-      }
-      if (dist >= 3072) {
-        maxLOD = 6;
-      }
-      if (dist >= 4096) {
-        maxLOD = 5;
-      }
+      // if (dist >= 2048) {
+      // maxLOD = 7;
+      // }
+      // if (dist >= 3072) {
+      // maxLOD = 6;
+      // }
+      // if (dist >= 4096) {
+      // maxLOD = 5;
+      // }
 
       System.out.println("Initializing chunk [" + chunk.origin[0] + ", " + chunk.origin[1]
           + ", " + chunk.origin[2] + "]: " + chunk.pointer + ":" + dist + ":" + maxLOD);
@@ -698,34 +700,44 @@ public class Octree {
   public ChangeBounds useSDFBrush(SignedDistanceField sdf, byte value) {
     // TODO: Don't hardcode the maxLOD.
     int[] pos = { 0, 0, 0 };
+    marchTime = 0;
     ChangeBounds changeBounds = new ChangeBounds();
-    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, false, value, 0, 11, changeBounds);
+    useSDFBrush(sdf, 0, 0, 0, Constants.WORLD_SIZE, pos, false, value, 0, 13, changeBounds);
+    System.out.println("March time: " + marchTime);
     return changeBounds;
   }
 
   private void useSDFBrush(SignedDistanceField sdf, int currentPointer, int parentPointer, int childNumber, int size,
-      int[] pos, boolean isLeaf, boolean subdivided, byte value, int curLOD, int maxLOD, ChangeBounds changeBounds) {
+      int[] pos, boolean isLeaf, byte value, int curLOD, int maxLOD, ChangeBounds changeBounds) {
 
-    // TODO: @Optimization We can skip nodes if distance is greater than the
-    // diagonal length of the node.
     // Check if current node contains the volume. If not, return.
+    int[] nodeMax = {
+        pos[0] + size,
+        pos[1] + size,
+        pos[2] + size
+    };
+    if (!Util.intersectAABB(pos, nodeMax, sdf.min, sdf.max)) {
+      return;
+    }
+
+    // Set marching start to min of SDF AABB, if applicable
+    int[] min = Util.max(pos, sdf.min);
+
     boolean containsVolume = false;
     boolean bordersVolume = false;
     boolean containsAir = false;
     int cSize = size / 2;
     int[] localPos = new int[3];
-    int cubeDiag = (int) Math.ceil(Constants.Math.SQRT3 * size);
-    for (int i = pos[0]; i < pos[0] + size; i++) {
-      for (int j = pos[1]; j < pos[1] + size; j++) {
-        for (int k = pos[2]; k < pos[2] + size; k++) {
+    double startTime = System.currentTimeMillis();
+    for (int i = min[0]; i < pos[0] + size; i++) {
+      for (int j = min[1]; j < pos[1] + size; j++) {
+        for (int k = min[2]; k < pos[2] + size; k++) {
           localPos[0] = i;
           localPos[1] = j;
           localPos[2] = k;
+
           int dist = sdf.distance(localPos);
           int absoluteDist = Math.abs(dist);
-          if (dist > cubeDiag) {
-            return;
-          }
           if (dist <= 0) {
             containsVolume = true;
           }
@@ -735,7 +747,6 @@ public class Octree {
           if (dist > 0) {
             containsAir = true;
           }
-
           // @Hack... kinda? This snippet is for limiting the march distance so we don't
           // miss any small features. May have to play around with these numbers in the
           // future.
@@ -753,6 +764,7 @@ public class Octree {
       if (containsVolume && containsAir)
         break;
     }
+    marchTime += System.currentTimeMillis() - startTime;
 
     if (!containsVolume && !bordersVolume) {
       return;
@@ -796,12 +808,8 @@ public class Octree {
           forEachChild(currentPointer, pos, size, func);
           return;
         }
-        // if (value != 0) {
-        // // updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
-        // setValue(currentPointer, value);
-        // }
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
-            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD, changeBounds);
+            info.pos, info.isLeaf, value, curLOD + 1, maxLOD, changeBounds);
         forEachChild(currentPointer, pos, size, func);
       }
       // Case: subtractive operation, node borders volume
@@ -810,12 +818,8 @@ public class Octree {
         subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
             curLOD, maxLOD, sdf, changeBounds);
       } else {
-        // if (value != 0) {
-        // // updateExistingNodeBounds(changeBounds, currentPointer, currentPointer);
-        // setValue(currentPointer, value);
-        // }
         Consumer<NodeInfo> func = (info) -> useSDFBrush(sdf, info.pointer, currentPointer, info.childNumber, cSize,
-            info.pos, info.isLeaf, false, value, curLOD + 1, maxLOD, changeBounds);
+            info.pos, info.isLeaf, value, curLOD + 1, maxLOD, changeBounds);
         forEachChild(currentPointer, pos, size, func);
 
       }
@@ -875,7 +879,7 @@ public class Octree {
 
     // Recurse on children
     for (int i = 0; i < 8; i++) {
-      useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, true, value,
+      useSDFBrush(sdf, children[i], currentPointer, i, cSize, cPos[i], true, value,
           curLOD + 1, maxLOD, changeBounds);
     }
   }
@@ -916,6 +920,27 @@ public class Octree {
     }
   }
 
+  public void forEachChild(int parentPointer, Consumer<NodeInfo> method) {
+    int childPointer = getChildPointer(parentPointer);
+    short leafMask = getLeafMask(parentPointer);
+    for (int i = 0; i < 8; i++) {
+      int localMask = (leafMask & (0x0003 << (i << 1))) >> (i << 1);
+      if (localMask == 0) {
+        method.accept(new NodeInfo(childPointer, null, i, false));
+        childPointer += NODE_SIZE;
+      } else if (localMask == 1) {
+        method.accept(new NodeInfo(childPointer, null, i, true));
+        childPointer += LEAF_SIZE;
+      } else if (localMask == 2) {
+        method.accept(new NodeInfo(childPointer, null, i, true));
+        childPointer += NODE_SIZE;
+      } else if (localMask == 3) {
+        method.accept(new NodeInfo(childPointer, null, i, true));
+        childPointer += NON_SURFACE_LEAF_SIZE;
+      }
+    }
+  }
+
   private int[][] genChildPositions(int[] pPos, int cSize) {
     int[][] cPos = new int[8][3];
     for (int n = 0; n < 8; n++) {
@@ -932,6 +957,18 @@ public class Octree {
 
   public ByteBuffer getByteBuffer() {
     return buffer;
+  }
+
+  // @Hack ChangeBounds object contains extra data.
+  public void getSubtreeRange(int pointer) {
+    ChangeBounds cb = new ChangeBounds();
+    updateExistingNodeBounds(cb, pointer, pointer);
+    Consumer<NodeInfo> method = (info) -> {
+      if (info.childNumber == 7) {
+        getSubtreeRange(info.pointer);
+      }
+    };
+    forEachChild(pointer, method);
   }
 
   public void writeBufferToFile(String fileName) {

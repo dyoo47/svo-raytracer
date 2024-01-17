@@ -2,6 +2,12 @@ package src.engine;
 
 public class Util {
 
+  public static boolean intersectAABB(int[] min0, int[] max0, int[] min1, int[] max1) {
+    return (min0[0] <= max1[0] && max0[0] >= min1[0]) &&
+        (min0[1] <= max1[1] && max0[1] >= min1[1]) &&
+        (min0[2] <= max1[2] && max0[2] >= min1[2]);
+  }
+
   public static int[] toVoxelSpace(float[] worldSpacePos) {
     int[] voxelSpacePos = {
         (int) ((worldSpacePos[0] - 1) * Constants.WORLD_SIZE),
@@ -17,6 +23,17 @@ public class Util {
     double zsq = Math.pow(pos0[2] - pos1[2], 2);
     double dist = Math.sqrt(xsq + ysq + zsq);
     return (int) Math.round(dist);
+  }
+
+  /**
+   * 
+   * @param pos0
+   * @param pos1
+   * @return a normalized vector starting from pos0 and pointing to pos1.
+   */
+  public static double[] getPointingVector(int[] pos0, int[] pos1) {
+    double[] diff = normalize(subtractVectors(pos1, pos0));
+    return diff;
   }
 
   public static double length(int[] vec0) {
@@ -80,6 +97,15 @@ public class Util {
         vec0[0] * scalar0,
         vec0[1] * scalar0,
         vec0[2] * scalar0
+    };
+    return product;
+  }
+
+  public static double[] mult(double[] vec0, int[] vec1) {
+    double[] product = {
+        vec0[0] * vec1[0],
+        vec0[1] * vec1[1],
+        vec0[2] * vec1[2]
     };
     return product;
   }

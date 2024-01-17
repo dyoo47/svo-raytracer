@@ -27,7 +27,7 @@ public class Constants {
   };
 
   public static final int[] WORLD_OFFSET = { 0, -512, 0 };
-  public static final int WORLD_SIZE = 2048;
+  public static final int WORLD_SIZE = 8196;
 
   public static final int MARCH_DISTANCE_MIN_CUTOFF = 5;
 

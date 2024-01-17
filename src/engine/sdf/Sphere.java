@@ -2,14 +2,23 @@ package src.engine.sdf;
 
 import src.engine.Util;
 
-public class Sphere implements SignedDistanceField {
+public class Sphere extends SignedDistanceField {
 
-  int[] origin;
   int radius;
 
   public Sphere(int[] origin, int radius) {
     this.origin = origin;
     this.radius = radius;
+    this.min = new int[] {
+        origin[0] - radius - 1,
+        origin[1] - radius - 1,
+        origin[2] - radius - 1
+    };
+    this.max = new int[] {
+        origin[0] + radius + 1,
+        origin[1] + radius + 1,
+        origin[2] + radius + 1
+    };
   }
 
   @Override

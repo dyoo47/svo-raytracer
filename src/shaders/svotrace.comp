@@ -34,6 +34,7 @@ float rand(vec2 co){ //TODO: Find faster noise function
 #define EPSILON 3.552713678800501e-15f
 #define CORRECTION_FACTOR 0.000001
 #define PI 3.14159265359f
+#define SQRT3 1.73205080757f
 #define SAMPLES 1
 #define NODE_SIZE 7
 #define LEAF_SIZE 3
@@ -610,7 +611,7 @@ vec3 trace(float beamDist, vec3 origin, vec3 dir, float seed0, float seed1, floa
       matcolor.b = lambdab * matcolor.b + (1 - lambdab) * fogColor.g;
       
       // Shadow ray
-      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, false) && res.t > res.scale * 4){
+      if(intersectOctree(res.voxelPos, sun_dir, 1.0/sun_dir, res, MAX_DEPTH, false) && res.t > res.scale * SQRT3){
         // if(res.depth < 12){
         //   if(res.t > res.scale * 4){
         //     matcolor -= vec3(0.2f);

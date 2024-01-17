@@ -2,9 +2,8 @@ package src.engine.sdf;
 
 import src.engine.Util;
 
-public class Box implements SignedDistanceField {
+public class Box extends SignedDistanceField {
 
-  int[] origin;
   int width;
   int height;
   int depth;
@@ -14,6 +13,16 @@ public class Box implements SignedDistanceField {
     this.width = width;
     this.height = height;
     this.depth = depth;
+    this.min = new int[] {
+        origin[0] - (int) Math.ceil(width / 2.0f),
+        origin[1] - (int) Math.ceil(height / 2.0f),
+        origin[2] - (int) Math.ceil(depth / 2.0f),
+    };
+    this.max = new int[] {
+        origin[0] + (int) Math.ceil(width / 2.0f),
+        origin[1] + (int) Math.ceil(height / 2.0f),
+        origin[2] + (int) Math.ceil(depth / 2.0f),
+    };
   }
 
   @Override

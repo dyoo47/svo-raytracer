@@ -102,7 +102,16 @@ public class ByteCacheTest {
 
   @Test
   public void anothertest() {
-    System.out.println(Integer.toBinaryString(0xFFFF & Short.MIN_VALUE));
+
+    double startTime = System.currentTimeMillis();
+    ByteBuffer pixels = BufferUtils.createByteBuffer(Constants.WINDOW_WIDTH * Constants.WINDOW_HEIGHT * 4);
+    pixels.put(1092, (byte) 19);
+    int value = 0;
+    for (int i = 0; i < Constants.WINDOW_HEIGHT * Constants.WINDOW_WIDTH; i++) {
+      value += pixels.getInt(i * 4);
+    }
+    double endTime = System.currentTimeMillis() - startTime;
+    System.out.println("time: " + endTime + " ms, value: " + value);
   }
 
 }
