@@ -242,16 +242,19 @@ public class Main extends Application {
       cam.setSpeed(0.0005f);
     }
     if (Input.keyPressed(Input.REMOVE_NODE)) {
-      dirty = true;
-      System.out.println("Placed sphere at " + voxelSpacePos[0] + ", " + voxelSpacePos[1] + ", " + voxelSpacePos[2]);
-      SignedDistanceField box = new Box(voxelSpacePos, 10, 20, 30);
-      octree.useSDFBrush(box, (byte) 2);
+      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
+      SignedDistanceField box = new Box(targetPos, 126, 30, 126);
+      placeSDF((byte) 0, box);
     }
     if (Input.mouseButtonPressed(Input.SUBTRACT_SPHERE)) {
-      placeSDF((byte) 0);
+      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
+      SignedDistanceField sphere = new Sphere(targetPos, 64);
+      placeSDF((byte) 0, sphere);
     }
     if (Input.mouseButtonPressed(Input.PUT_SPHERE)) {
-      placeSDF((byte) 1);
+      int[] targetPos = cam.getRayPickLocation(crosshairDepth);
+      SignedDistanceField sphere = new Sphere(targetPos, 64);
+      placeSDF((byte) 1, sphere);
     }
 
     if (useBeamOptimization) {
@@ -335,13 +338,11 @@ public class Main extends Application {
     return String.format("%.0f", value);
   }
 
-  private void placeSDF(byte value) {
-    int[] targetPos = cam.getRayPickLocation(crosshairDepth);
+  private void placeSDF(byte value, SignedDistanceField sdf) {
     dirty = true;
-    System.out.println("Placed sphere at " + targetPos[0] + ", " + targetPos[1] + ", " + targetPos[2]);
+    System.out.println("Placed sphere at " + sdf.origin[0] + ", " + sdf.origin[1] + ", " + sdf.origin[2]);
     double startTime = System.currentTimeMillis();
-    SignedDistanceField sphere = new Sphere(targetPos, 64);
-    ChangeBounds cb = octree.useSDFBrush(sphere, (byte) value);
+    ChangeBounds cb = octree.useSDFBrush(sdf, (byte) value);
     double endTime = System.currentTimeMillis() - startTime;
     System.out.println("Took " + endTime + "ms");
     System.out.println("Change bounds: [" + cb.start0 + ", " + cb.end0 + "] [" + cb.start1 + ", " + cb.end1 + "]");

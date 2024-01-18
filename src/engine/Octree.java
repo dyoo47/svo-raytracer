@@ -815,6 +815,7 @@ public class Octree {
       // Case: subtractive operation, node borders volume
     } else if (bordersVolume && size > 1) {
       if (isLeaf) {
+
         subdivideNode(parentPointer, currentPointer, value, childNumber, cSize, pos,
             curLOD, maxLOD, sdf, changeBounds);
       } else {

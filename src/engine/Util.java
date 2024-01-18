@@ -110,6 +110,15 @@ public class Util {
     return product;
   }
 
+  public static double[] divide(int[] vec0, int[] vec1) {
+    double[] quotient = {
+        vec0[0] / (double) vec1[0],
+        vec0[1] / (double) vec1[1],
+        vec0[2] / (double) vec1[2]
+    };
+    return quotient;
+  }
+
   public static int[] max(int[] vec0, int[] vec1) {
     int[] max = {
         Math.max(vec0[0], vec1[0]),
